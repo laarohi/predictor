@@ -1,0 +1,38 @@
+scoring:
+    Phase I:
+        Group Stage:
+            outcome: 5
+            result: 15
+        Round of 16:
+            qualified: 10
+            ordering: 5
+        Semi-final:
+            qualified: 30
+        Final:
+            qualified: 40
+        Winner:
+            qualified: 70
+        Bonus:
+            outcome: 20
+    
+    Phase II:
+        Quarter-final:
+            result: 10
+            qualified: 10
+        Semi-final:
+            result: 10
+            qualified: 20
+        Final:
+            result: 10
+            qualified: 30
+        Winner:
+            result: 10
+            qualified: 50
+            
+participants:
+    - Luke Aarohi
+    - Tommy Camilleri
+    - Kyle Muscat
+    - Michael Pace
+    - Adam Al Gededi
+  
