@@ -6,20 +6,20 @@ scoring:
         Round of 16:
             qualified: 10
             ordering: 5
-        Semi-final:
+        Semi-finals:
             qualified: 30
         Final:
             qualified: 40
         Winner:
             qualified: 70
         Bonus:
-            outcome: 20
+            qualified: 20
     
     Phase II:
-        Quarter-final:
+        Quarter-finals:
             result: 10
             qualified: 10
-        Semi-final:
+        Semi-finals:
             result: 10
             qualified: 20
         Final:
