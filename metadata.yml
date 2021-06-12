@@ -26,7 +26,6 @@ scoring:
             result: 10
             qualified: 30
         Winner:
-            result: 10
             qualified: 50
             
 participants:
@@ -35,4 +34,26 @@ participants:
     - Kyle Muscat
     - Michael Pace
     - Adam Al Gededi
-  
+    - Jake Camilleri
+    - Jeremy Spiteri Bailey
+    - Julian Abela
+    - David Mifsud
+    - Adam Micallef
+    - Ben Cassar Galea
+    - Luke Borg
+    - Kyle Muscat
+    - Michael Tonna
+    - Beppe Darmanin
+    - Sean Gatt Baldacchino
+    - Liam Grech
+    - Simon Attard
+    - Ed Fenech Adami
+    - Kurt Sultana
+    - Benji Flynn
+    - Daniel Cutajar
+    
+ 
+bonus:
+    - Group Stage Top Team
+    - Top Scorer
+    - Best Young Player
