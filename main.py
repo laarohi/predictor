@@ -8,16 +8,25 @@ import plotly
 from dash.dependencies import Input, Output
 from euro_prediction import Tournament
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+#------------------------------ LOAD DATA ------------------------------- #
 
-tournament = Tournament('/euro2020/', 'https://www.livescores.com/soccer/euro-2020/')
+tournament = Tournament('./', 'https://www.livescores.com/soccer/euro-2020/')
 #tournament = Tournament('/Users/lukeaarohi/pyfiles/EURO2020/', 'https://www.livescores.com/soccer/euro-2020/')
 preds = tournament.predicted_scores
 preds.index.name = 'Name'
 preds = preds.reset_index()
 
+# ----------------------------- DASH ---------------------------------- #
+
+
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app  = dash.Dash(__name__ , external_stylesheets=external_stylesheets)
+app.config.suppress_callback_exceptions = True
+
+
+# -------------------------- PROJECT DASHBOARD ---------------------------- #
+
 app.layout = html.Div(
     html.Div([
         html.H1('CxF Euro 2020 Pools',
@@ -102,4 +111,4 @@ def update_scoring_live(n):
 
 
 if __name__ == '__main__':
-    app.run_server(host='0.0.0.0', port=8050)
+    app.run_server(host='0.0.0.0', port=8050, debug=True, use_reloader=False)
