@@ -215,6 +215,18 @@ def scrape_competition_from_livescore(comp_url):
         
     return res
 
+def update_scrape_from_livescore(comp_scores, comp_url):
+    comp_markup = fetch_beautiful_markup(comp_url)
+    new_scores = extract_scores(comp_markup)
+    for stage, stage_scores in new_scores.items():
+        if stage in comp_scores:
+            scores = comp_scores[stage].matches
+            scores.update(stage_scores)
+            comp_scores[stage] = Stage(stage, scores)
+    return comp_scores
+        
+    
+
 class Score():
     def __init__(self, mid, score, teams=None):
         self.mid = mid
@@ -471,16 +483,27 @@ class ActualBracket(Bracket):
         self.name = 'actual'
         self.phase = 0
         self.dat = scrape_competition_from_livescore(comp_url)
+        self.comp_url = comp_url
         self.dat['Winner'] = Stage(name='Winner', teams = self.dat['Final'].winners)
         bonus_1 = self.dat['Group Stage'].highest_scoring_team
         bonus_2 = None
         bonus_3 = None
         #load bonus 2 and 3 from metadata.yml
         self.dat['Bonus'] = Stage(name='Bonus', teams=[bonus_1, bonus_2, bonus_3])
+
+    def update(self):
+        self.dat = update_scrape_from_livescore(self.dat, self.comp_url)
+        self.dat['Winner'] = Stage(name='Winner', teams = self.dat['Final'].winners)
+        bonus_1 = self.dat['Group Stage'].highest_scoring_team
+        bonus_2 = None
+        bonus_3 = None
+        #load bonus 2 and 3 from metadata.yml
+        self.dat['Bonus'] = Stage(name='Bonus', teams=[bonus_1, bonus_2, bonus_3])
+
         
             
 class Tournament():
-    def __init__(self, workdir, comp_url, interval=600):
+    def __init__(self, workdir, comp_url, update=60, load=3600*24):
         with open(os.path.join(workdir,'metadata.yml')) as f:
             config = yaml.safe_load(f)
         self.participants = [p.replace(' ','') for p in config['participants']]
@@ -491,14 +514,20 @@ class Tournament():
             self.brackets[participant] = Bracket.load_dual_phase(participant, self.workdir, scoring=self.scoring)
         self.comp_url = comp_url
         self.load_time = 0
-        self.load_interval = interval 
+        self.load_interval = load 
+        self.update_time = time.time()
+        self.update_interval = update 
         self.reload()
     
     def reload(self):
-        if time.time() - self.load_time > self.load_interval:
+        current_time = time.time()
+        if current_time - self.load_time > self.load_interval:
             self.actual = ActualBracket(self.comp_url)
             self.teams = self.actual.dat['Group Stage'].teams
-            self.load_time = time.time()
+            self.load_time = current_time
+        elif current_time - self.update_time > self.update_interval:
+            self.actual.update()
+            self.update_time = current_time
         
     @property
     def standings(self):

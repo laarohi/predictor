@@ -10,24 +10,71 @@ from euro_prediction import Tournament
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
+tournament = Tournament('/euro2020/', 'https://www.livescores.com/soccer/euro-2020/')
+#tournament = Tournament('/Users/lukeaarohi/pyfiles/EURO2020/', 'https://www.livescores.com/soccer/euro-2020/')
+preds = tournament.predicted_scores
+preds.index.name = 'Name'
+preds = preds.reset_index()
+
+
 app  = dash.Dash(__name__ , external_stylesheets=external_stylesheets)
 app.layout = html.Div(
     html.Div([
-        html.H4('CxF Euro 2020 Pools'),
-        html.Div(id='live-update-text'),
-        dash_table.DataTable(
-            id='scoring-table',
-        ),
+        html.H1('CxF Euro 2020 Pools',
+                style={
+                    "width": "100%",
+                    "text-align": "center",
+                    "padding-top": "2%",
+                    },
+                ),
+        dcc.Tabs(
+            [
+                dcc.Tab(
+                    label="Standings",
+                    children=[
+                        html.H2(
+                            "Standings",
+                            style={
+                                "width": "100%",
+                                "text-align": "center",
+                                "padding-top": "3%",
+                            },
+                        ),
+						dash_table.DataTable(
+							id='scoring-table',
+						),
+					]
+				),
+                dcc.Tab(
+                    label="Upcoming Predictions",
+                    children=[
+                        html.H2(
+                            "Upcoming Predictions",
+                            style={
+                                "width": "100%",
+                                "text-align": "center",
+                                "padding-top": "3%",
+                            },
+                        ),
+						dash_table.DataTable(
+							id='pred-table',
+							columns=[{'name': x, 'id': x} for x in preds.columns],
+							data = preds.to_dict('records')
+							),
+                        ]
+                    ),
+                ]
+            ),
+					
+				
         dcc.Interval(
             id='interval-component',
-            interval=5*60*1*1000, # in milliseconds
+            interval=1*60*1*1000, # in milliseconds
             n_intervals=0
         )
     ])
     )
 
-tournament = Tournament('./euro2020/', 'https://www.livescores.com/soccer/euro-2020/')
-#tournament = Tournament('/Users/lukeaarohi/pyfiles/EURO2020/', 'https://www.livescores.com/soccer/euro-2020/')
 
 
 # Multiple components can update everytime interval gets fired.
@@ -47,6 +94,8 @@ def update_scoring_live(n):
     df.columns = df.columns.droplevel(0)
     df['Total'] = df.sum(axis=1)
     df = df.sort_index().sort_values('Total', ascending=False)
+    df['Ranking'] = df.Total.rank(method='min', ascending=False)
+    df = df[['Ranking'] + list(df.columns)[:-1]]
     data = df.to_dict('records')
     columns=[{'name': x, 'id': x} for x in df.columns]
     return data, columns
