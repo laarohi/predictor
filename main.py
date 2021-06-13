@@ -10,6 +10,7 @@ from euro_prediction import Tournament
 
 #------------------------------ LOAD DATA ------------------------------- #
 
+print('I AM HERE')
 tournament = Tournament('./', 'https://www.livescores.com/soccer/euro-2020/')
 #tournament = Tournament('/Users/lukeaarohi/pyfiles/EURO2020/', 'https://www.livescores.com/soccer/euro-2020/')
 preds = tournament.predicted_scores
