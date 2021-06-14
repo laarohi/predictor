@@ -10,12 +10,7 @@ from euro_prediction import Tournament
 
 #------------------------------ LOAD DATA ------------------------------- #
 
-print('I AM HERE')
 tournament = Tournament('./', 'https://www.livescores.com/soccer/euro-2020/')
-#tournament = Tournament('/Users/lukeaarohi/pyfiles/EURO2020/', 'https://www.livescores.com/soccer/euro-2020/')
-preds = tournament.predicted_scores
-preds.index.name = 'Name'
-preds = preds.reset_index()
 
 # ----------------------------- DASH ---------------------------------- #
 
@@ -23,6 +18,7 @@ preds = preds.reset_index()
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app  = dash.Dash(__name__ , external_stylesheets=external_stylesheets)
+server = app.server
 app.config.suppress_callback_exceptions = True
 
 
@@ -68,8 +64,6 @@ app.layout = html.Div(
                         ),
 						dash_table.DataTable(
 							id='pred-table',
-							columns=[{'name': x, 'id': x} for x in preds.columns],
-							data = preds.to_dict('records')
 							),
                         ]
                     ),
@@ -78,23 +72,26 @@ app.layout = html.Div(
 					
 				
         dcc.Interval(
-            id='interval-component',
+            id='scoring-interval-component',
             interval=1*60*1*1000, # in milliseconds
             n_intervals=0
-        )
+        ),
+        dcc.Interval(
+            id='pred-interval-component',
+            interval=24*60*60*1*1000, # in milliseconds
+            n_intervals=0
+        ),
+
     ])
     )
-
 
 
 # Multiple components can update everytime interval gets fired.
 @app.callback([
               Output('scoring-table', 'data'),
               Output('scoring-table', 'columns'),
-              #Output('pred-table', 'data'),
-              #Output('pred-table', 'columns'),
               ],
-              Input('interval-component', 'n_intervals'))
+              Input('scoring-interval-component', 'n_intervals'))
 def update_scoring_live(n):
     tournament.reload()
     df = tournament.standings
@@ -110,6 +107,20 @@ def update_scoring_live(n):
     columns=[{'name': x, 'id': x} for x in df.columns]
     return data, columns
 
+
+# Multiple components can update everytime interval gets fired.
+@app.callback([
+              Output('pred-table', 'data'),
+              Output('pred-table', 'columns'),
+              ],
+              Input('pred-interval-component', 'n_intervals'))
+def update_pred_live(n):
+    df = tournament.predicted_scores
+    df.index.name = 'Name'
+    df = df.reset_index()
+    data = df.to_dict('records')
+    columns=[{'name': x, 'id': x} for x in df.columns]
+    return data, columns
 
 if __name__ == '__main__':
     app.run_server(host='0.0.0.0', port=8050, debug=True, use_reloader=False)

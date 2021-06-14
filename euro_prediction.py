@@ -23,13 +23,12 @@
 #             - f: list
 # 
 # Checklist to get done:
-# - make sure that score can be computed correctly from comparison of livescore bracket and player bracket
-# - finalise classes
-# - pretty print html format for scoring table
-# - pretty print html format for player scores
-# - figure out flask and how to host
-# - make use of metadata.yml for scoring system points
-# - parse astericks in knockout phase
+# DONE - make sure that score can be computed correctly from comparison of livescore bracket and player bracket
+# DONE - finalise classes
+# DONE - pretty print html format for scoring table
+# DONE - pretty print html format for player scores
+# DONE - figure out flask and how to host
+# DONE - make use of metadata.yml for scoring system points
 # - prepare phase II excel sheet
 # - fix round of 16 scoring in livescore scraper somehow need to know where each team finished in their group. Might be easier to just 
 # - rewrite of excel parser to parse directly from first sheet
@@ -49,6 +48,7 @@ import time
 from bs4 import BeautifulSoup
 from urllib import parse
 from collections import Counter
+from datetime import datetime
 
 import yaml
 import pandas as pd
@@ -135,6 +135,9 @@ def extract_scores(parsed_markup, stage=None):
         
         match_name_element = element.find(attrs={"class": "scorelink"})
         ls_id = int(element.get('data-eid'))
+        match_dt = element.get('data-esd')
+        if match_dt:
+            match_dt = datetime.strptime(match_dt, '%Y%m%d%H%M%S')
         mid = ls_id_map.get(ls_id, ls_id)
         order = ls_order_map.get(ls_id, None)
 
@@ -152,7 +155,7 @@ def extract_scores(parsed_markup, stage=None):
             #score = gen_score()
 
             # add our data to our dictionary
-            scores[match_stage][mid] = Score(mid, score, teams)
+            scores[match_stage][mid] = Score(mid, score, teams, match_dt)
         elif stage:
             if stage not in scores: scores[stage] = {}
             # we need to use a different method to get our data
@@ -167,7 +170,7 @@ def extract_scores(parsed_markup, stage=None):
                 teams = tuple(zip(teams, order))
 
             # add our data to our dictionary
-            scores[stage][mid] = Score(mid, score, teams)
+            scores[stage][mid] = Score(mid, score, teams, match_dt)
 
     return scores
 
@@ -228,16 +231,19 @@ def update_scrape_from_livescore(comp_scores, comp_url):
     
 
 class Score():
-    def __init__(self, mid, score, teams=None):
+    def __init__(self, mid, score, teams=None, dt=None):
         self.mid = mid
         self.home = None
         self.away = None
         self.score = None
         self.teams = None
         self.outcome = None
+        self.dt = None
         
         if teams:
             self.teams = tuple(teams)
+        if dt:
+            self.dt = dt
         if isinstance(score, str):
             if '?' in score:
                 # handling livescore future game score
@@ -289,7 +295,6 @@ class Score():
             return None
         
     def compute(self, other, outcome=5, result=15):
-         # TEMPORARY LINE DONT FORGET TO REMOVE
         if self.teams and other.teams and (self.teams != other.teams):
             return 0
         if self.score == other.score:
@@ -304,7 +309,6 @@ def score_compare(a, b, outcome=5, result=15):
     '''
     compare scores a & b
     '''
-    # TEMPORARY LINE DONT FORGET TO REMOVE
     b.score = tuple([s.strip() for s in b.score])
     if a.teams and b.teams and (a.teams != b.teams):
         return 0
@@ -399,14 +403,16 @@ class Stage():
             
         return points
     
-    def get_scores(self, other):
+    def get_upcoming_scores(self, other):
         matches = {}
         if self.matches:
             missing_matches = set(self.matches.keys()) - set(other.matches.keys())
             if missing_matches:
                 print(f'Warning missing matches! {missing_matches}')
             for mid, match in self.matches.items():
-                matches[other.matches[mid].matchup] = match.__str__()
+                other_match = other.matches.get(mid)
+                if other_match and (0 <= (other_match.dt.date() - datetime.now().date()).days <= 2):
+                    matches[other_match.matchup] = match.__str__()
         
         return matches
 
@@ -474,9 +480,9 @@ class Bracket():
             
         return points
     
-    def get_scores(self, other):
+    def get_upcoming_scores(self, other):
         if 'Group Stage' in self.dat:
-            return self.dat['Group Stage'].get_scores(other.dat['Group Stage'])
+            return self.dat['Group Stage'].get_upcoming_scores(other.dat['Group Stage'])
     
 class ActualBracket(Bracket):
     def __init__(self, comp_url):
@@ -547,7 +553,7 @@ class Tournament():
         scores = {}
         for name, (phase1, phase2) in self.brackets.items():
             name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
-            scores[name] = phase1.get_scores(self.actual)
+            scores[name] = phase1.get_upcoming_scores(self.actual)
         scores = pd.DataFrame.from_dict(scores).T.sort_index()
         return scores
         

@@ -1,4 +1,5 @@
 service: default
+
 runtime: python37
 
 basic_scaling:
