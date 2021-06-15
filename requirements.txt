@@ -1,0 +1,10 @@
+dash
+pandas
+numpy
+pyyaml
+bs4
+requests
+xlrd
+openpyxl
+gunicorn
+dash-bootstrap-components
