@@ -19,6 +19,7 @@ tournament = Tournament('./', 'https://www.livescores.com/soccer/euro-2020/')
 external_stylesheets=[dbc.themes.SUPERHERO]
 app  = dash.Dash(__name__ , external_stylesheets=external_stylesheets)
 server = app.server
+app.title = "CxF Euro 2020"
 app.config.suppress_callback_exceptions = True
 
 
