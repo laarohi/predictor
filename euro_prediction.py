@@ -229,6 +229,15 @@ def update_scrape_from_livescore(comp_scores, comp_url):
     return comp_scores
         
     
+code_url = 'http://www.rsssf.com/miscellaneous/fifa-codes.html'
+codes = fetch_beautiful_markup(code_url)
+codes = codes.pre.get_text().splitlines()
+codes = [l.replace('\t', '').replace('-----','---') for l in codes if '\t' in l]
+# two way mapping
+fifa_codes = {l[:-6]:l[-6:-3] for l in codes}
+fifa_codes['North Macedonia'] = fifa_codes.pop('Macedonia FYR')
+fifa_codes['Netherlands'] = fifa_codes.pop('Holland')
+
 
 class Score():
     def __init__(self, mid, score, teams=None, dt=None):
@@ -242,6 +251,10 @@ class Score():
         
         if teams:
             self.teams = tuple(teams)
+            try:
+                self.teams = tuple([fifa_codes[team] for team in self.teams])
+            except KeyError:
+                pass
         if dt:
             self.dt = dt
         if isinstance(score, str):
@@ -262,22 +275,36 @@ class Score():
         # 1 - home_win; 0 - draw; 2 - away_win
         self.outcome = (self.home != self.away) + (self.away>self.home)
         return 
+
+        
     
     def __str__(self):
         if self.score:
             if self.teams:
-                return f"{self.teams[0]} {'-'.join(self.score)} {self.teams[1]}"
+                if isinstance(self.teams[0], tuple):
+                    teams = [t[0] for t in self.teams]
+                else:
+                    teams = self.teams
+                return f"{teams[0]} {'-'.join(self.score)} {teams[1]}"
             else:
                 return f"{'-'.join(self.score)}"
         else:
             if self.teams:
-                return f'{self.teams[0]} ? - ? {self.teams[1]}'
+                if isinstance(self.teams[0], tuple):
+                    teams = [t[0] for t in self.teams]
+                else:
+                    teams =  self.teams
+                return f'{teams[0]} ? - ? {teams[1]}'
             else:
                 return f'{self.mid}: ? - ?'
     
     @property
     def matchup(self):
         if self.teams:
+            if isinstance(self.teams[0], tuple):
+                teams = [t[0] for t in self.teams]
+            else:
+                teams = self.teams
             return f'{self.teams[0]} vs {self.teams[1]}'
     
     @property
@@ -506,7 +533,15 @@ class ActualBracket(Bracket):
         #load bonus 2 and 3 from metadata.yml
         self.dat['Bonus'] = Stage(name='Bonus', teams=[bonus_1, bonus_2, bonus_3])
 
-        
+    @property
+    def matches(self):
+        matches = {}
+        for stage in self.dat.values():
+            if hasattr(stage, 'matches') and stage.matches:
+                matches.update(stage.matches)
+
+        return matches
+
             
 class Tournament():
     def __init__(self, workdir, comp_url, update=60, load=3600*24):
@@ -524,6 +559,7 @@ class Tournament():
         self.update_time = time.time()
         self.update_interval = update 
         self.reload()
+
     
     def reload(self):
         current_time = time.time()
