@@ -155,7 +155,7 @@ def extract_scores(parsed_markup, stage=None):
             #score = gen_score()
 
             # add our data to our dictionary
-            scores[match_stage][mid] = Score(mid, score, teams, match_dt)
+            scores[match_stage][mid] = Score(mid, score, teams, match_dt, stage=match_stage)
         elif stage:
             if stage not in scores: scores[stage] = {}
             # we need to use a different method to get our data
@@ -170,7 +170,7 @@ def extract_scores(parsed_markup, stage=None):
                 teams = tuple(zip(teams, order))
 
             # add our data to our dictionary
-            scores[stage][mid] = Score(mid, score, teams, match_dt)
+            scores[stage][mid] = Score(mid, score, teams, match_dt, stage=stage)
 
     return scores
 
@@ -240,7 +240,7 @@ fifa_codes['Netherlands'] = fifa_codes.pop('Holland')
 
 
 class Score():
-    def __init__(self, mid, score, teams=None, dt=None):
+    def __init__(self, mid, score, teams=None, dt=None, stage=None):
         self.mid = mid
         self.home = None
         self.away = None
@@ -248,6 +248,7 @@ class Score():
         self.teams = None
         self.outcome = None
         self.dt = None
+        self.stage = stage
         
         if teams:
             self.teams = tuple(teams)
@@ -379,7 +380,7 @@ class Stage():
         if matches:
             test_match = list(matches.values())[0]
             if isinstance(test_match, str):
-                self.matches = {k:Score(k, v) for k,v in matches.items()}
+                self.matches = {k:Score(k, v, stage=self.name) for k,v in matches.items()}
             elif isinstance(test_match, Score):
                 self.matches = matches
             else:

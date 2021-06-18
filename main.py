@@ -20,6 +20,13 @@ def to_local(dt):
 
 tournament = Tournament('./', 'https://www.livescores.com/soccer/euro-2020/')
 
+color_code = {'Group Stage': 'primary',
+              'Round of 16': 'secondary',
+              'Quarter-finals': 'info',
+              'Semi-finals': 'danger',
+              'Finals': 'warning',
+              'Done': 'success'
+            }
 
 # ----------------------------- DASH ---------------------------------- #
 
@@ -38,9 +45,14 @@ def get_score_cards(matches, tdy=None):
         match_list = [m for m in match_list if m.dt.date() == datetime.utcnow().date()]
     cdt = match_list[0].dt.date()
     for match in match_list: 
-        
+        if match.stage:
+            col = color_code.get(match.stage, 'light')
+        else:
+            col = 'light'
+        if match.outcome is not None:
+            col = color_code['Done']
         if match.dt.date() > cdt:
-            cards.append(dbc.Row(row, className="mb-4"))
+            cards.append(dbc.Row(row, className="mb-4", justify='center'))
             row = []
             cdt = match.dt.date()
         if match.teams:
@@ -55,7 +67,7 @@ def get_score_cards(matches, tdy=None):
                     style={'textAlign': 'center'}
                     ),
                 ] 
-            row.append(dbc.Col(dbc.Card(card_content, color='primary', inverse=True, 
+            row.append(dbc.Col(dbc.Card(card_content, color=col, inverse=True, 
                 className="mb-4"), width=3))
 
     cards.append(dbc.Row(row, className="mb-4", justify='center'))
