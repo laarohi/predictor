@@ -31,10 +31,9 @@
 # DONE - make use of metadata.yml for scoring system points
 # - prepare phase II excel sheet
 # - fix round of 16 scoring in livescore scraper somehow need to know where each team finished in their group. Might be easier to just 
-# - rewrite of excel parser to parse directly from first sheet
 # - fix astericks scoring for knockout phase in excel and python
 # - set then unordered tuple then ordered for teams
-# - 
+# - make table sortable by column
 # 
 
 # In[197]:
@@ -59,10 +58,53 @@ def from_livescore(x):
     x = x.replace('-',' ').title()
     if x.startswith('Group'):
         return 'Group Stage'
+    x = x.replace('Of','of')
     return x
 
 
 euro_url = 'https://www.livescores.com/soccer/euro-2020/'
+
+
+key_code_map = {
+     1: 'TUR.ITA',
+     2: 'WAL.SUI',
+     3: 'DEN.FIN',
+     4: 'BEL.RUS',
+     5: 'ENG.CRO',
+     6: 'AUT.MKD',
+     7: 'NED.UKR',
+     8: 'SCO.CZE',
+     9: 'POL.SVK',
+     10: 'ESP.SWE',
+     11: 'HUN.POR',
+     12: 'FRA.GER',
+     13: 'FIN.RUS',
+     14: 'TUR.WAL',
+     15: 'ITA.SUI',
+     16: 'UKR.MKD',
+     17: 'DEN.BEL',
+     18: 'NED.AUT',
+     19: 'SWE.SVK',
+     20: 'CRO.CZE',
+     21: 'ENG.SCO',
+     22: 'HUN.FRA',
+     23: 'POR.GER',
+     24: 'ESP.POL',
+     25: 'SUI.TUR',
+     26: 'ITA.WAL',
+     27: 'MKD.NED',
+     28: 'UKR.AUT',
+     29: 'RUS.DEN',
+     30: 'FIN.BEL',
+     31: 'CRO.SCO',
+     32: 'CZE.ENG',
+     33: 'SWE.POL',
+     34: 'SVK.ESP',
+     35: 'POR.FRA',
+     36: 'GER.HUN' 
+     } 
+
+inv_key_code_map = {v:k for k,v in key_code_map.items()}
 
 ls_id_map = {80596: 1,
              80595: 2,
@@ -91,6 +133,7 @@ ls_id_map = {80596: 1,
              80599: 25,
              80600: 26,
              81039: 27,
+             441209: 27,
              81040: 28,
              80741: 29,
              80740: 30,
@@ -99,7 +142,8 @@ ls_id_map = {80596: 1,
              80753: 33,
              80752: 34,
              80615: 35,
-             80616: 36}
+             80616: 36,
+            }
 
 ls_order_map = {
              80042: (2, 2),
@@ -138,7 +182,6 @@ def extract_scores(parsed_markup, stage=None):
         match_dt = element.get('data-esd')
         if match_dt:
             match_dt = datetime.strptime(match_dt, '%Y%m%d%H%M%S')
-        mid = ls_id_map.get(ls_id, ls_id)
         order = ls_order_map.get(ls_id, None)
 
         if match_name_element is not None :
@@ -148,10 +191,20 @@ def extract_scores(parsed_markup, stage=None):
             if match_stage not in scores: scores[match_stage] = {}
             home_team = from_livescore(matchup.split('-vs-')[0].strip())
             away_team = from_livescore(matchup.split('-vs-')[1].strip())
+            try:
+                mid = ls_id_map[ls_id]
+            except KeyError:
+                try:
+                    mid = inv_key_code_map[fifa_codes[home_team] + '.' + fifa_codes[away_team]]
+                except KeyError:
+                    mid = ls_id
+
+
             teams = (home_team, away_team)
             if order:
                 teams = tuple(zip(teams, order))
             score = element.find("div", "sco").get_text().strip()
+            minute = element.find("div", "min").get_text().strip()
             #score = gen_score()
 
             # add our data to our dictionary
@@ -161,6 +214,13 @@ def extract_scores(parsed_markup, stage=None):
             # we need to use a different method to get our data
             home_team = '-'.join(element.find("div", "tright").get_text().strip().split(" "))
             away_team = '-'.join(element.find(attrs={"class": "ply name"}).get_text().strip().split(" "))
+            try:
+                mid = ls_id_map[ls_id]
+            except KeyError:
+                try:
+                    mid = inv_key_code_map[fifa_codes[home_team] + '.' + fifa_codes[away_team]]
+                except KeyError:
+                    mid = ls_id
 
             score = element.find("div", "sco").get_text().strip()
             #score = gen_score()
@@ -240,7 +300,7 @@ fifa_codes['Netherlands'] = fifa_codes.pop('Holland')
 
 
 class Score():
-    def __init__(self, mid, score, teams=None, dt=None, stage=None):
+    def __init__(self, mid, score, teams=None, dt=None, stage=None, live=False):
         self.mid = mid
         self.home = None
         self.away = None
@@ -249,6 +309,7 @@ class Score():
         self.outcome = None
         self.dt = None
         self.stage = stage
+        self.live = live
         
         if teams:
             self.teams = tuple(teams)
@@ -416,7 +477,28 @@ class Stage():
         else:
             return None
             
+
+    def team_compare(self, other):
+        '''
+        compare teams in a to teams in b and score points accordingly
+        
+        a and b must be sets of teams
+        '''
+        pts = 0
+        correct_qualified = len(self.teams.intersection(other.teams))
+        
+        if self.ordering and self.teams and isinstance(list(self.teams)[0], tuple):
+            correct_ordering = correct_qualified
+            my_teams = set([t[0] for t in self.teams])
+            other_teams = set([t[0] for t in other.teams])
+            correct_qualified = len(my_teams.intersection(other_teams))
+            pts += correct_ordering * self.ordering
             
+        pts += correct_qualified * self.qualified
+        
+        return pts
+        
+
     def compute(self, other):
         points = 0
         if self.matches:
@@ -427,7 +509,7 @@ class Stage():
                 points += match.compute(other.matches[mid], self.outcome, self.result)
         
         if self.teams:
-            points += team_compare(self.teams, other.teams, self.qualified, self.ordering)
+            points += self.team_compare(other)
             
         return points
     

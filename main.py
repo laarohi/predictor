@@ -58,12 +58,14 @@ def get_score_cards(matches, tdy=None):
         if match.teams:
             header = to_local(match.dt).strftime('%d/%m/%Y @ %H:%M')
             title = match.__str__() #.replace(' ','\n').replace('-','vs')
+            body = []
+            if False: #match.live:
+                body.append(dbc.Col(dbc.Spinner(color='success', type='grow'), width=1))
+            body.append(dbc.Col(html.H5(title, className="card-title"))),
             card_content = [
             dbc.CardHeader(header, style={'textAlign': 'center'}),
             dbc.CardBody(
-                    [
-                        html.H5(title, className="card-title"),
-                    ],
+                    dbc.Row(body),
                     style={'textAlign': 'center'}
                     ),
                 ] 
