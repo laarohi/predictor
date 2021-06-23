@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# coding: utf-8
 
 # ### Euro 2020 Prediction Game
 # 
@@ -35,8 +34,6 @@
 # - set then unordered tuple then ordered for teams
 # - make table sortable by column
 # 
-
-# In[197]:
 
 
 import requests
@@ -293,10 +290,11 @@ code_url = 'http://www.rsssf.com/miscellaneous/fifa-codes.html'
 codes = fetch_beautiful_markup(code_url)
 codes = codes.pre.get_text().splitlines()
 codes = [l.replace('\t', '').replace('-----','---') for l in codes if '\t' in l]
-# two way mapping
 fifa_codes = {l[:-6]:l[-6:-3] for l in codes}
 fifa_codes['North Macedonia'] = fifa_codes.pop('Macedonia FYR')
 fifa_codes['Netherlands'] = fifa_codes.pop('Holland')
+# two way mapping
+fifa_codes.update({v:k for k,v in fifa_codes.items()})
 
 
 class Score():
@@ -339,7 +337,6 @@ class Score():
         return 
 
         
-    
     def __str__(self):
         if self.score:
             if self.teams:
@@ -455,7 +452,10 @@ class Stage():
                         match_teams += list(match.teams)
                 self.teams = set(match_teams) or None
         if teams:
-            self.teams = set(teams)
+            if isinstance(teams, tuple):
+                self.teams = teams
+            elif isinstance(teams, (list, set)):
+                self.teams = set(teams)
             self.qualified = qualified or 0
             self.ordering = ordering or 0
         
@@ -485,14 +485,17 @@ class Stage():
         a and b must be sets of teams
         '''
         pts = 0
-        correct_qualified = len(self.teams.intersection(other.teams))
-        
-        if self.ordering and self.teams and isinstance(list(self.teams)[0], tuple):
-            correct_ordering = correct_qualified
-            my_teams = set([t[0] for t in self.teams])
-            other_teams = set([t[0] for t in other.teams])
-            correct_qualified = len(my_teams.intersection(other_teams))
-            pts += correct_ordering * self.ordering
+        if isinstance(self.teams, (list, tuple)):
+            correct_qualified = sum([a==b for a,b in zip(self.teams, other.teams)])
+        elif isinstance(self.teams, set):
+            correct_qualified = len(self.teams.intersection(other.teams))
+            
+            if self.ordering and self.teams and isinstance(list(self.teams)[0], tuple):
+                correct_ordering = correct_qualified
+                my_teams = set([t[0] for t in self.teams])
+                other_teams = set([t[0] for t in other.teams])
+                correct_qualified = len(my_teams.intersection(other_teams))
+                pts += correct_ordering * self.ordering
             
         pts += correct_qualified * self.qualified
         
@@ -523,8 +526,19 @@ class Stage():
                 other_match = other.matches.get(mid)
                 if other_match and (0 <= (other_match.dt.date() - datetime.now().date()).days <= 2):
                     matches[other_match.matchup] = match.__str__()
-        
         return matches
+        
+    def get_teams(self):
+        if self.teams:
+            if isinstance(self.teams, set):
+                teams = sorted(list(self.teams))
+            else:
+                teams = list(self.teams)
+            if isinstance(teams[0], str):
+                return [t.split()[-1].title() for t in teams]
+            else:
+                return teams
+            
 
             
 class Bracket():
@@ -551,7 +565,7 @@ class Bracket():
                 self.dat['Semi-finals']= Stage(name='Semi-final', teams=list(dat[55:59]), **self.scoring['Semi-finals'])
                 self.dat['Final'] = Stage(name='Final', teams=list(dat[60:62]), **self.scoring['Final'])
                 self.dat['Winner'] = Stage(name='Winner', teams=list(dat[63:64]), **self.scoring['Winner'])
-                self.dat['Bonus'] = Stage(name='Bonus', teams=list(dat[65:68]), **self.scoring['Bonus'])
+                self.dat['Bonus'] = Stage(name='Bonus', teams=tuple(dat[65:68]), **self.scoring['Bonus'])
             else:
                 print(f'No valid Phase 1 file found for {name}')
         
@@ -593,6 +607,14 @@ class Bracket():
     def get_upcoming_scores(self, other):
         if 'Group Stage' in self.dat:
             return self.dat['Group Stage'].get_upcoming_scores(other.dat['Group Stage'])
+
+    @property
+    def teams(self):
+        teams = {}
+        for key, stage in self.dat.items():
+            if stage.get_teams():
+                teams[(self.phase, key)] = stage.get_teams()
+        return teams
     
 class ActualBracket(Bracket):
     def __init__(self, comp_url):
@@ -601,20 +623,20 @@ class ActualBracket(Bracket):
         self.dat = scrape_competition_from_livescore(comp_url)
         self.comp_url = comp_url
         self.dat['Winner'] = Stage(name='Winner', teams = self.dat['Final'].winners)
-        bonus_1 = self.dat['Group Stage'].highest_scoring_team
+        bonus_1 = fifa_codes.get(self.dat['Group Stage'].highest_scoring_team)
         bonus_2 = None
         bonus_3 = None
         #load bonus 2 and 3 from metadata.yml
-        self.dat['Bonus'] = Stage(name='Bonus', teams=[bonus_1, bonus_2, bonus_3])
+        self.dat['Bonus'] = Stage(name='Bonus', teams=(bonus_1, bonus_2, bonus_3))
 
     def update(self):
         self.dat = update_scrape_from_livescore(self.dat, self.comp_url)
         self.dat['Winner'] = Stage(name='Winner', teams = self.dat['Final'].winners)
-        bonus_1 = self.dat['Group Stage'].highest_scoring_team
+        bonus_1 = fifa_codes.get(self.dat['Group Stage'].highest_scoring_team)
         bonus_2 = None
         bonus_3 = None
         #load bonus 2 and 3 from metadata.yml
-        self.dat['Bonus'] = Stage(name='Bonus', teams=[bonus_1, bonus_2, bonus_3])
+        self.dat['Bonus'] = Stage(name='Bonus', teams=(bonus_1, bonus_2, bonus_3))
 
     @property
     def matches(self):
@@ -675,6 +697,21 @@ class Tournament():
             scores[name] = phase1.get_upcoming_scores(self.actual)
         scores = pd.DataFrame.from_dict(scores).T.sort_index()
         return scores
+
+    @property
+    def predicted_teams(self):
+        teams = {}
+        for name, (phase1, phase2) in self.brackets.items():
+            name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
+            teams[name] = {}
+            if phase1.teams:
+                teams[name].update(phase1.teams)
+            if phase2.teams:
+                teams[name].update(phase2.teams)
+        teams = pd.DataFrame.from_dict(teams, orient='index')
+        return teams
+
+            
         
 
 
