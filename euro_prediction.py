@@ -617,6 +617,7 @@ class Bracket():
         return teams
     
 class ActualBracket(Bracket):
+
     def __init__(self, comp_url):
         self.name = 'actual'
         self.phase = 0
@@ -649,6 +650,7 @@ class ActualBracket(Bracket):
 
             
 class Tournament():
+
     def __init__(self, workdir, comp_url, update=60, load=3600*24):
         with open(os.path.join(workdir,'metadata.yml')) as f:
             config = yaml.safe_load(f)
