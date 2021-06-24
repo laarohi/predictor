@@ -561,7 +561,7 @@ class Bracket():
             elif os.path.exists(xlsx_file_1):
                 dat = pd.read_excel(xlsx_file_1, sheet_name='INTERNAL_USE_ONLY').iloc[:,0].values
                 self.dat['Group Stage'] = Stage(name='Group Stage',matches={i+1:m for i,m in enumerate(dat[1:37])}, **self.scoring['Group Stage'])
-                self.dat['Round of 16'] = Stage(name='Round of 16', teams=list(zip(dat[38:54], [1,2]*4 + [3]*4)), **self.scoring['Round of 16'])
+                self.dat['Round of 16'] = Stage(name='Round of 16', teams=list(zip(dat[38:54], [1,2]*6 + [3]*4)), **self.scoring['Round of 16'])
                 self.dat['Semi-finals']= Stage(name='Semi-final', teams=list(dat[55:59]), **self.scoring['Semi-finals'])
                 self.dat['Final'] = Stage(name='Final', teams=list(dat[60:62]), **self.scoring['Final'])
                 self.dat['Winner'] = Stage(name='Winner', teams=list(dat[63:64]), **self.scoring['Winner'])
