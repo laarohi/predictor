@@ -43,6 +43,8 @@ def get_score_cards(matches, tdy=None):
     match_list = sorted(list(matches.values()), key=lambda x: x.dt)
     if tdy:
         match_list = [m for m in match_list if m.dt.date() == datetime.utcnow().date()]
+    if not match_list:
+        return cards
     cdt = match_list[0].dt.date()
     for match in match_list: 
         if match.stage:
