@@ -453,8 +453,18 @@ class Stage():
                 self.teams = set(match_teams) or None
         if teams:
             if isinstance(teams, tuple):
+                if isinstance(teams[0], str):
+                    try:
+                        teams = tuple([fifa_codes.get(team.title(), team) for team in teams])
+                    except KeyError:
+                        pass
                 self.teams = teams
             elif isinstance(teams, (list, set)):
+                if isinstance(list(teams)[0], str):
+                    try:
+                        teams = [fifa_codes.get(team.title(), team) for team in teams]
+                    except KeyError:
+                        pass
                 self.teams = set(teams)
             self.qualified = qualified or 0
             self.ordering = ordering or 0
@@ -534,10 +544,9 @@ class Stage():
                 teams = sorted(list(self.teams))
             else:
                 teams = list(self.teams)
-            if isinstance(teams[0], str):
-                return [t.split()[-1].title() for t in teams]
-            else:
-                return teams
+                if isinstance(teams[0], str):
+                    return [t.split()[-1].title() for t in teams]
+            return teams
             
 
             
@@ -562,7 +571,7 @@ class Bracket():
                 dat = pd.read_excel(xlsx_file_1, sheet_name='INTERNAL_USE_ONLY').iloc[:,0].values
                 self.dat['Group Stage'] = Stage(name='Group Stage',matches={i+1:m for i,m in enumerate(dat[1:37])}, **self.scoring['Group Stage'])
                 self.dat['Round of 16'] = Stage(name='Round of 16', teams=list(zip(dat[38:54], [1,2]*6 + [3]*4)), **self.scoring['Round of 16'])
-                self.dat['Semi-finals']= Stage(name='Semi-final', teams=list(dat[55:59]), **self.scoring['Semi-finals'])
+                self.dat['Semi-Finals']= Stage(name='Semi-final', teams=list(dat[55:59]), **self.scoring['Semi-finals'])
                 self.dat['Final'] = Stage(name='Final', teams=list(dat[60:62]), **self.scoring['Final'])
                 self.dat['Winner'] = Stage(name='Winner', teams=list(dat[63:64]), **self.scoring['Winner'])
                 self.dat['Bonus'] = Stage(name='Bonus', teams=tuple(dat[65:68]), **self.scoring['Bonus'])
@@ -625,17 +634,17 @@ class ActualBracket(Bracket):
         self.comp_url = comp_url
         self.dat['Winner'] = Stage(name='Winner', teams = self.dat['Final'].winners)
         bonus_1 = fifa_codes.get(self.dat['Group Stage'].highest_scoring_team)
-        bonus_2 = None
-        bonus_3 = None
+        bonus_2 = 'Player'
+        bonus_3 = 'Player'
         #load bonus 2 and 3 from metadata.yml
         self.dat['Bonus'] = Stage(name='Bonus', teams=(bonus_1, bonus_2, bonus_3))
 
     def update(self):
         self.dat = update_scrape_from_livescore(self.dat, self.comp_url)
         self.dat['Winner'] = Stage(name='Winner', teams = self.dat['Final'].winners)
-        bonus_1 = fifa_codes.get(self.dat['Group Stage'].highest_scoring_team)
-        bonus_2 = None
-        bonus_3 = None
+        bonus_1 = self.dat['Group Stage'].highest_scoring_team
+        bonus_2 = 'Player'
+        bonus_3 = 'Player'
         #load bonus 2 and 3 from metadata.yml
         self.dat['Bonus'] = Stage(name='Bonus', teams=(bonus_1, bonus_2, bonus_3))
 
@@ -710,7 +719,7 @@ class Tournament():
                 teams[name].update(phase1.teams)
             if phase2.teams:
                 teams[name].update(phase2.teams)
-        teams = pd.DataFrame.from_dict(teams, orient='index')
+        teams = pd.DataFrame.from_dict(teams, orient='index').sort_index()
         return teams
 
             

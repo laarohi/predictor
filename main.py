@@ -7,6 +7,7 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_table
 import plotly
+from pandas import DataFrame
 from dash.dependencies import Input, Output
 from euro_prediction import Tournament
 
@@ -101,7 +102,7 @@ tab2_content = dbc.Card(
     dbc.CardBody(
         [
             html.H2(
-                "Upcoming Predictions",
+                "Upcoming Predicted Scores",
                 style={
                     "width": "100%",
                     "text-align": "center",
@@ -118,6 +119,23 @@ tab3_content = dbc.Card(
     dbc.CardBody(
         [
             html.H2(
+                "Predicted Teams",
+                style={
+                    "width": "100%",
+                    "text-align": "center",
+                    "padding-bottom": "2%",
+                },
+            ),
+            html.Div(id='pred-team-table'),		
+        ]
+    ),
+    className="mt-3",
+)
+
+tab4_content = dbc.Card(
+    dbc.CardBody(
+        [
+            html.H2(
                 "Results and Fixtures",
                 style={
                     "width": "100%",
@@ -130,7 +148,6 @@ tab3_content = dbc.Card(
     ),
     className="mt-3",
 )
-
 
 app.layout = dbc.Container(
     html.Div([
@@ -154,8 +171,9 @@ app.layout = dbc.Container(
        dbc.Tabs(
             [
                 dbc.Tab(tab1_content, label="Standings"),
-                dbc.Tab(tab2_content, label="Upcoming Predictions"),
-                dbc.Tab(tab3_content, label="Results and Fixtures"),
+                dbc.Tab(tab2_content, label="Upcoming Predicted Scores"),
+                dbc.Tab(tab3_content, label="Predicted Teams"),
+                dbc.Tab(tab4_content, label="Results and Fixtures"),
             ]
                 ),
         dcc.Interval(
@@ -207,11 +225,42 @@ def update_scoring_live(n):
 @app.callback(
               Output('pred-table', 'children'),
               Input('pred-interval-component', 'n_intervals'))
-def update_pred_live(n):
+def update_pred_scores_live(n):
     df = tournament.predicted_scores
     df.index.name = 'Name'
     df = df.reset_index()
     return dbc.Table.from_dataframe(df, dark=True, striped=True, bordered=True, hover=True)
+
+
+@app.callback(
+              Output('pred-team-table', 'children'),
+              Input('pred-interval-component', 'n_intervals'))
+def update_pred_teams_live(n):
+    df = tournament.predicted_teams
+    p_tabs = []
+    for phase in df.columns.get_level_values(0).unique():
+        pdf = df[phase]
+        s_tabs = []
+        for stage in pdf.columns:
+            if stage == 'Round of 16': continue
+            stage_s = pdf[stage]
+            cols = [stage + ' ' + str(i) for i in range(1, len(stage_s[0])+1)]
+            sdf = DataFrame.from_dict(dict(zip(df.index, stage_s.values)), orient='index', columns=cols)
+            sdf.index.name = 'Name'
+            sdf = sdf.reset_index()
+            s_table = dbc.Table.from_dataframe(sdf,
+                        dark=True, striped=True, bordered=True, hover=True)
+            tab = dbc.Tab(dbc.Card(dbc.CardBody([s_table]),className="mt-3"),
+                            label=stage)
+            s_tabs.append(tab)
+
+        stage_tabs = dbc.Tabs(s_tabs)
+        tab = dbc.Tab(dbc.Card(dbc.CardBody([stage_tabs]),className="mt-3"),
+                            label=phase)
+        p_tabs.append(tab)
+    phase_tabs = dbc.Tabs(p_tabs)
+    return phase_tabs 
+
 
 if __name__ == '__main__':
     app.run_server(host='0.0.0.0', port=8050, debug=True, use_reloader=False)
