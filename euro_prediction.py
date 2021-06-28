@@ -263,9 +263,12 @@ def fulltime_match_score(match_url):
     score = '0 - 0'
     for goal in match.find_all(attrs={'class':'inc goal'}, recursive=True):
         event_elements = goal.parent.parent.parent
-        minute = parse_min(event_elements.find('div','min').get_text().strip())
-        if minute <= 90:
-            score = event_elements.find('div', 'sco').get_text().strip()
+        try:
+            minute = parse_min(event_elements.find('div','min').get_text().strip())
+            if minute <= 90:
+                score = event_elements.find('div', 'sco').get_text().strip()
+        except:
+            pass
     return score
 
 
