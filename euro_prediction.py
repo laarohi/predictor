@@ -50,9 +50,13 @@ import yaml
 import pandas as pd
 
 gen_score = lambda : f'{random.randint(0,3)} - {random.randint(0,3)}'
+parse_min = lambda x: int(x.strip().replace("'",""))
 
 def from_livescore(x):
-    x = x.replace('-',' ').title()
+    if x.endswith('finals'):
+        x = x.title()
+    else:
+        x = x.replace('-',' ').title()
     if x.startswith('Group'):
         return 'Group Stage'
     x = x.replace('Of','of')
@@ -60,7 +64,6 @@ def from_livescore(x):
 
 
 euro_url = 'https://www.livescores.com/soccer/euro-2020/'
-
 
 key_code_map = {
      1: 'TUR.ITA',
@@ -173,7 +176,6 @@ def extract_scores(parsed_markup, stage=None):
 
     # scrape needed data from the parsed markup
     for element in parsed_markup.find_all("div", "row-gray") :
-        
         match_name_element = element.find(attrs={"class": "scorelink"})
         ls_id = int(element.get('data-eid'))
         match_dt = element.get('data-esd')
@@ -183,7 +185,8 @@ def extract_scores(parsed_markup, stage=None):
 
         if match_name_element is not None :
             # this means the match is about to be played
-            match_stage, matchup = match_name_element.get('href').split('/')[3:5]
+            match_path = match_name_element.get('href')
+            match_stage, matchup = match_path.split('/')[3:5]
             match_stage = from_livescore(match_stage)
             if match_stage not in scores: scores[match_stage] = {}
             home_team = from_livescore(matchup.split('-vs-')[0].strip())
@@ -192,7 +195,7 @@ def extract_scores(parsed_markup, stage=None):
                 mid = ls_id_map[ls_id]
             except KeyError:
                 try:
-                    mid = inv_key_code_map[fifa_codes[home_team] + '.' + fifa_codes[away_team]]
+                    mid = fifa_codes[home_team] + '.' + fifa_codes[away_team]
                 except KeyError:
                     mid = ls_id
 
@@ -202,10 +205,19 @@ def extract_scores(parsed_markup, stage=None):
                 teams = tuple(zip(teams, order))
             score = element.find("div", "sco").get_text().strip()
             minute = element.find("div", "min").get_text().strip()
-            #score = gen_score()
-
+            match_path = parse.urljoin(euro_url, match_path)
+            if minute in ('AET', 'AP'):
+                score = fulltime_match_score(match_path)
+            elif minute != 'FT':
+                try:
+                    minute = parse_min(minute)
+                    if minute > 90:
+                        score = fulltime_match_score(match_path)
+                except:
+                    pass
             # add our data to our dictionary
             scores[match_stage][mid] = Score(mid, score, teams, match_dt, stage=match_stage)
+
         elif stage:
             if stage not in scores: scores[stage] = {}
             # we need to use a different method to get our data
@@ -215,12 +227,12 @@ def extract_scores(parsed_markup, stage=None):
                 mid = ls_id_map[ls_id]
             except KeyError:
                 try:
-                    mid = inv_key_code_map[fifa_codes[home_team] + '.' + fifa_codes[away_team]]
+                    mid = fifa_codes[home_team] + '.' + fifa_codes[away_team]
                 except KeyError:
                     mid = ls_id
 
             score = element.find("div", "sco").get_text().strip()
-            #score = gen_score()
+            minute = element.find("div", "min").get_text().strip()
 
             teams = (home_team, away_team)
             if order:
@@ -242,9 +254,22 @@ def extract_competition_stages(markup, comp):
     
     return stages
     
+def fulltime_match_score(match_url):
+    """
+    if a match goes to extra-time we want to get only
+    the score after 90 minutes.
+    """
+    match = fetch_beautiful_markup(match_url)
+    score = '0 - 0'
+    for goal in match.find_all(attrs={'class':'inc goal'}, recursive=True):
+        event_elements = goal.parent.parent.parent
+        minute = parse_min(event_elements.find('div','min').get_text().strip())
+        if minute <= 90:
+            score = event_elements.find('div', 'sco').get_text().strip()
+    return score
+
 
 def scrape_scores_from_livescore(url, stage) :
-    
     parsed_markup = fetch_beautiful_markup(url)
     scores = extract_scores(parsed_markup, stage)
     return scores
@@ -298,7 +323,7 @@ fifa_codes.update({v:k for k,v in fifa_codes.items()})
 
 
 class Score():
-    def __init__(self, mid, score, teams=None, dt=None, stage=None, live=False):
+    def __init__(self, mid, score, teams=None, dt=None, stage=None, live=False, use_code=False):
         self.mid = mid
         self.home = None
         self.away = None
@@ -308,13 +333,16 @@ class Score():
         self.dt = None
         self.stage = stage
         self.live = live
-        
+                
         if teams:
             self.teams = tuple(teams)
             try:
                 self.teams = tuple([fifa_codes[team] for team in self.teams])
+                if use_code:
+                    self.mid =  self.teams[0] + '.' + self.teams[1]
             except KeyError:
                 pass
+
         if dt:
             self.dt = dt
         if isinstance(score, str):
@@ -322,18 +350,27 @@ class Score():
                 # handling livescore future game score
                 #print(f'No score yet for {self.teams}')
                 return
-            else:
-                score = score.replace(' ','').split('-')
+            if '*' in score:
+                o = score.find('*') - score.find('-')
+                if o > 0:
+                    self.outcome = 2
+                elif o < 0:
+                    self.outcome = 1
+                score = score.replace('*','')
+
+            score = score.replace(' ','').split('-')
+
                 
         if isinstance(score, (list, tuple)) and len(score)==2:
             self.score = tuple(score)
-            self.home = int(score[0])
-            self.away = int(score[1])
+            self.home = int(float(score[0]))
+            self.away = int(float(score[1]))
         else:
             raise TypeError('unknown score format')
             
         # 1 - home_win; 0 - draw; 2 - away_win
-        self.outcome = (self.home != self.away) + (self.away>self.home)
+        if self.outcome is None:
+            self.outcome = (self.home != self.away) + (self.away>self.home)
         return 
 
         
@@ -364,7 +401,7 @@ class Score():
                 teams = [t[0] for t in self.teams]
             else:
                 teams = self.teams
-            return f'{self.teams[0]} vs {self.teams[1]}'
+            return f'{teams[0]} vs {teams[1]}'
     
     @property
     def winner(self):
@@ -381,8 +418,8 @@ class Score():
             return None
         
     def compute(self, other, outcome=5, result=15):
-        if self.teams and other.teams and (self.teams != other.teams):
-            return 0
+        #if self.teams and other.teams and (self.teams != other.teams):
+        #    return 0
         if self.score == other.score:
             return result
         elif self.outcome == other.outcome:
@@ -390,41 +427,6 @@ class Score():
         else:
             return 0
 
-
-def score_compare(a, b, outcome=5, result=15):
-    '''
-    compare scores a & b
-    '''
-    b.score = tuple([s.strip() for s in b.score])
-    if a.teams and b.teams and (a.teams != b.teams):
-        return 0
-    if a.score == b.score:
-        return result
-    elif a.outcome == b.outcome:
-        return outcome
-    else:
-        return 0
-
-def team_compare(a, b, qualified=10, ordering=0):
-    '''
-    compare teams in a to teams in b and score points accordingly
-    
-    a and b must be sets of teams
-    '''
-    pts = 0
-    correct_qualified = len(a.intersection(b))
-    
-    if ordering and a and isinstance(a, tuple):
-        correct_ordering = correct_qualified
-        a_teams = set([t[0] for t in a])
-        b_teams = set([t[0] for t in b])
-        correct_qualified = len(a_teams.intersection(b_teams))
-        pts += correct_ordering * ordering
-        
-    pts += correct_qualified * qualified
-    
-    return pts
-        
         
 class Stage():
     def __init__(self, name, matches=None, teams=None, outcome=None, result=None, qualified=None, ordering=None):
@@ -435,6 +437,10 @@ class Stage():
         self.name = name
         self.matches = None
         self.teams = None
+        self.outcome = outcome or 0
+        self.result = result or 0
+        self.qualified = qualified or 0
+        self.ordering = ordering or 0
         if matches:
             test_match = list(matches.values())[0]
             if isinstance(test_match, str):
@@ -443,13 +449,13 @@ class Stage():
                 self.matches = matches
             else:
                 raise TypeError('Unrecognised matches format')
-            self.outcome = outcome or 0
-            self.result = result or 0
             if not teams:
                 match_teams = []
                 for match in self.matches.values():
                     if match.teams:
                         match_teams += list(match.teams)
+                if match_teams and isinstance(match_teams[0], str):
+                    match_teams = [fifa_codes.get(team.title(), team) for team in match_teams]
                 self.teams = set(match_teams) or None
         if teams:
             if isinstance(teams, tuple):
@@ -462,12 +468,10 @@ class Stage():
             elif isinstance(teams, (list, set)):
                 if isinstance(list(teams)[0], str):
                     try:
-                        teams = [fifa_codes.get(team.title(), team) for team in teams]
+                        teams = tuple([fifa_codes.get(team.title(), team) for team in teams])
                     except KeyError:
                         pass
                 self.teams = set(teams)
-            self.qualified = qualified or 0
-            self.ordering = ordering or 0
         
     @property
     def winners(self):
@@ -500,7 +504,7 @@ class Stage():
         elif isinstance(self.teams, set):
             correct_qualified = len(self.teams.intersection(other.teams))
             
-            if self.ordering and self.teams and isinstance(list(self.teams)[0], tuple):
+            if self.teams and self.ordering and isinstance(list(self.teams)[0], tuple):
                 correct_ordering = correct_qualified
                 my_teams = set([t[0] for t in self.teams])
                 other_teams = set([t[0] for t in other.teams])
@@ -516,10 +520,11 @@ class Stage():
         points = 0
         if self.matches:
             missing_matches = set(self.matches.keys()) - set(other.matches.keys())
-            if missing_matches:
-                print(f'Warning missing matches! {missing_matches}')
+            #if missing_matches:
+            #    print(f'Warning missing matches! {missing_matches}')
             for mid, match in self.matches.items():
-                points += match.compute(other.matches[mid], self.outcome, self.result)
+                if mid in other.matches:
+                    points += match.compute(other.matches[mid], self.outcome, self.result)
         
         if self.teams:
             points += self.team_compare(other)
@@ -530,11 +535,11 @@ class Stage():
         matches = {}
         if self.matches:
             missing_matches = set(self.matches.keys()) - set(other.matches.keys())
-            if missing_matches:
-                print(f'Warning missing matches! {missing_matches}')
+            #if missing_matches:
+            #    print(f'Warning missing matches! {missing_matches}')
             for mid, match in self.matches.items():
                 other_match = other.matches.get(mid)
-                if other_match and (0 <= (other_match.dt.date() - datetime.now().date()).days <= 2):
+                if other_match and (0 <= (other_match.dt.date() - datetime.now().date()).days <= 5):
                     matches[other_match.matchup] = match.__str__()
         return matches
         
@@ -571,7 +576,7 @@ class Bracket():
                 dat = pd.read_excel(xlsx_file_1, sheet_name='INTERNAL_USE_ONLY').iloc[:,0].values
                 self.dat['Group Stage'] = Stage(name='Group Stage',matches={i+1:m for i,m in enumerate(dat[1:37])}, **self.scoring['Group Stage'])
                 self.dat['Round of 16'] = Stage(name='Round of 16', teams=list(zip(dat[38:54], [1,2]*6 + [3]*4)), **self.scoring['Round of 16'])
-                self.dat['Semi-Finals']= Stage(name='Semi-final', teams=list(dat[55:59]), **self.scoring['Semi-finals'])
+                self.dat['Semi-Finals']= Stage(name='Semi-Final', teams=list(dat[55:59]), **self.scoring['Semi-Finals'])
                 self.dat['Final'] = Stage(name='Final', teams=list(dat[60:62]), **self.scoring['Final'])
                 self.dat['Winner'] = Stage(name='Winner', teams=list(dat[63:64]), **self.scoring['Winner'])
                 self.dat['Bonus'] = Stage(name='Bonus', teams=tuple(dat[65:68]), **self.scoring['Bonus'])
@@ -586,11 +591,18 @@ class Bracket():
             if os.path.exists(pkl_file_2):
                 self.dat = pkl_load(pkl_file_2)
             elif os.path.exists(xlsx_file_2):
-                dat = pd.read_excel(xlsx_file_2, sheet_name='INTERNAL_USE_ONLY').iloc[:,0].values
-                # TODO add phase 2 once sheet is complete
+                dat = pd.read_excel(xlsx_file_2, sheet_name='INTERNAL_USE_ONLY').iloc[:,0:2]
+                self.dat['Round of 16'] = self.parse_stage('Round of 16', range(37,45),
+                        dat.iloc[0:8].values, dat.iloc[8:16].values, use_code=True)
+                self.dat['Quarter-Finals'] = self.parse_stage('Quarter-Finals', range(45,49),
+                        dat.iloc[17:21].values, dat.iloc[21:25].values, use_code=True)
+                self.dat['Semi-Finals'] = self.parse_stage('Semi-Finals', range(49,51),
+                        dat.iloc[26:28].values, dat.iloc[28:30].values, use_code=True)
+                self.dat['Final'] = self.parse_stage('Final', [51],
+                        dat.iloc[31:32].values, dat.iloc[32:33].values, use_code=True)
+                self.dat['Winner'] = Stage(name='Winner', teams=[dat.iloc[34,0]], **self.scoring['Winner'])
             else:
-                #print(f'No valid Phase 2 file found for {name}')
-                return None
+                print(f'No valid Phase 2 file found for {name}')
         
     
     
@@ -600,7 +612,16 @@ class Bracket():
         phase2 = cls(participant, workdir, scoring, phase=2)
         return phase1, phase2
         
-    
+    def parse_stage(self, stage_name, mids, home_dat, away_dat, use_code=False):
+        scores = {}
+        for i, (home_team, home_score), (away_team, away_score) in zip(mids, home_dat, away_dat):
+            s = Score(i,f'{home_score}-{away_score}',  teams=(home_team,away_team), 
+                     use_code=use_code)
+            scores[s.mid] = s
+
+        return Stage(stage_name, scores, **self.scoring[stage_name])
+
+
     def compute(self, other):
         points = {}
         for key, stage in self.dat.items():
@@ -614,8 +635,14 @@ class Bracket():
         return points
     
     def get_upcoming_scores(self, other):
-        if 'Group Stage' in self.dat:
-            return self.dat['Group Stage'].get_upcoming_scores(other.dat['Group Stage'])
+        matches = {}
+        for stage, dat in self.dat.items():
+            #import pdb; pdb.set_trace()
+            if dat.matches:
+                matches.update(dat.get_upcoming_scores(other.dat[stage]))
+        return matches
+        #if 'Group Stage' in self.dat:
+        #    return self.dat['Group Stage'].get_upcoming_scores(other.dat['Group Stage'])
 
     @property
     def teams(self):
@@ -695,7 +722,11 @@ class Tournament():
             points[name] = {}
             points[name].update(phase1.compute(self.actual))
             points[name].update(phase2.compute(self.actual))
+
         points = pd.DataFrame.from_dict(points, orient='index')
+        #points = points.groupby(level=1, axis=1).sum()
+        #cols = [col for col in col_ordering if col in points.columns]
+        #points = points[col]
         #points['Total'] = points.sum(axis=1)
         #points = points.sort_index().sort_values('Total', ascending=False)
         return points

@@ -14,9 +14,24 @@ from euro_prediction import Tournament
 utc = gettz('UTC')
 mlt = gettz('Europe/Malta')
 
+#------------------------------ HELPER FUNCTIONS ------------------------------- #
+
+col_ordering = ['Ranking','Name', 'Group Stage', 'Round of 16', 'Quarter-Finals', 'Semi-Finals', 
+                'Final', 'Winner', 'Bonus', 'Total']
+
 def to_local(dt):
     dt = dt.astimezone(utc)
     return dt.astimezone(mlt)
+
+def prep_standings(df):
+    df['Total'] = df.sum(axis=1)
+    df = df.sort_index().sort_values('Total', ascending=False)
+    df['Ranking'] = df.Total.rank(method='min', ascending=False)
+    df = df.reset_index()
+    cols = [col for col in col_ordering if col in df.columns]
+    df = df[cols]
+    tbl = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
+    return tbl
 #------------------------------ LOAD DATA ------------------------------- #
 
 tournament = Tournament('./', 'https://www.livescores.com/soccer/euro-2020/')
@@ -205,17 +220,23 @@ def update_scoring_live(n):
     df = tournament.standings
     df.index.name = 'Name'
     df = df.loc[:, (df.sum() > 0)]
-    df = df.reset_index(col_fill=None)
-    df.columns = df.columns.droplevel(0)
-    df['Total'] = df.sum(axis=1)
-    df = df.sort_index().sort_values('Total', ascending=False)
-    df['Ranking'] = df.Total.rank(method='min', ascending=False)
-    df = df[['Ranking'] + list(df.columns)[:-1]]
+    p_tabs = []
+    # Compute overall standings
+    o_df = df.groupby(level=1, axis=1).sum()
+    o_tbl = prep_standings(o_df)
+    tab = dbc.Tab(dbc.Card(dbc.CardBody([o_tbl]),className="mt-3"),
+                            label='Overall')
+    p_tabs.append(tab)
+    for phase in df.columns.get_level_values(0).unique():
+        p_tbl = prep_standings(df[phase].copy())
+        tab = dbc.Tab(dbc.Card(dbc.CardBody([p_tbl]),className="mt-3"),
+                                label=phase)
+        p_tabs.append(tab)
 
     score_cards = get_score_cards(tournament.actual.matches)
     live_score_cards = get_score_cards(tournament.actual.matches, tdy=True)
 
-    return (dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True), 
+    return (dbc.Tabs(p_tabs), 
             score_cards,
             live_score_cards,
            )
