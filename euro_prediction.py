@@ -470,11 +470,23 @@ class Stage():
                         teams = tuple([fifa_codes.get(team.title(), team) for team in teams])
                     except KeyError:
                         pass
+                elif isinstance(teams[0], tuple):
+                    try:
+                        teams = tuple([(fifa_codes.get(team[0].title(), team[0]), team[1])
+                                        for team in teams])
+                    except KeyError:
+                        pass
                 self.teams = teams
             elif isinstance(teams, (list, set)):
                 if isinstance(list(teams)[0], str):
                     try:
                         teams = tuple([fifa_codes.get(team.title(), team) for team in teams])
+                    except KeyError:
+                        pass
+                elif isinstance(list(teams)[0], tuple):
+                    try:
+                        teams = tuple([(fifa_codes.get(team[0].title(), team[0]), team[1])
+                                        for team in teams])
                     except KeyError:
                         pass
                 self.teams = set(teams)
