@@ -340,7 +340,10 @@ class Score():
         if teams:
             self.teams = tuple(teams)
             try:
-                self.teams = tuple([fifa_codes[team] for team in self.teams])
+                if isinstance(teams[0], tuple):
+                    self.teams = tuple([(fifa_codes[team[0]], team[1]) for team in self.teams])
+                else:
+                    self.teams = tuple([fifa_codes[team] for team in self.teams])
                 if use_code:
                     self.mid =  self.teams[0] + '.' + self.teams[1]
             except KeyError:
@@ -384,9 +387,9 @@ class Score():
                     teams = [t[0] for t in self.teams]
                 else:
                     teams = self.teams
-                return f"{teams[0]} {'-'.join(self.score)} {teams[1]}"
+                return f"{teams[0]} {self.home}-{self.away} {teams[1]}"
             else:
-                return f"{'-'.join(self.score)}"
+                return f"{self.home}-{self.away}"
         else:
             if self.teams:
                 if isinstance(self.teams[0], tuple):
@@ -542,7 +545,7 @@ class Stage():
             #    print(f'Warning missing matches! {missing_matches}')
             for mid, match in self.matches.items():
                 other_match = other.matches.get(mid)
-                if other_match and (0 <= (other_match.dt.date() - datetime.now().date()).days <= 5):
+                if other_match and (-2 <= (other_match.dt.date() - datetime.now().date()).days <= 4):
                     matches[other_match.matchup] = match.__str__()
         return matches
         
@@ -740,6 +743,7 @@ class Tournament():
         for name, (phase1, phase2) in self.brackets.items():
             name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
             scores[name] = phase1.get_upcoming_scores(self.actual)
+            scores[name].update(phase2.get_upcoming_scores(self.actual))
         scores = pd.DataFrame.from_dict(scores).T.sort_index()
         return scores
 
