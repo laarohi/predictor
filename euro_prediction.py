@@ -677,7 +677,7 @@ class ActualBracket(Bracket):
         self.phase = 0
         self.dat = scrape_competition_from_livescore(comp_url)
         self.comp_url = comp_url
-        self.dat['Winner'] = Stage(name='Winner', teams = self.dat['Final'].winners)
+        self.dat['Winner'] = Stage(name='Winner', teams = ['Italy'])
         bonus_1 = fifa_codes.get(self.dat['Group Stage'].highest_scoring_team)
         bonus_2 = 'Player'
         bonus_3 = 'Player'
@@ -686,7 +686,8 @@ class ActualBracket(Bracket):
 
     def update(self):
         self.dat = update_scrape_from_livescore(self.dat, self.comp_url)
-        self.dat['Winner'] = Stage(name='Winner', teams = self.dat['Final'].winners)
+        self.dat['Winner'] = Stage(name='Winner', teams = ['Italy'])
+
         bonus_1 = self.dat['Group Stage'].highest_scoring_team
         bonus_2 = 'Player'
         bonus_3 = 'Player'

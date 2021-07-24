@@ -189,6 +189,7 @@ app.layout = dbc.Container(
                 dbc.Tab(tab2_content, label="Upcoming Predicted Scores"),
                 dbc.Tab(tab3_content, label="Predicted Teams"),
                 dbc.Tab(tab4_content, label="Results and Fixtures"),
+                # add a tab with the rules and points system
             ]
                 ),
         dcc.Interval(
