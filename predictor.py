@@ -52,6 +52,7 @@ import pandas as pd
 gen_score = lambda : f'{random.randint(0,3)} - {random.randint(0,3)}'
 parse_min = lambda x: int(x.strip().replace("'",""))
 
+
 def from_livescore(x):
     if x.endswith('finals'):
         x = x.title()
@@ -61,100 +62,6 @@ def from_livescore(x):
         return 'Group Stage'
     x = x.replace('Of','of')
     return x
-
-
-euro_url = 'https://www.livescores.com/soccer/euro-2020/'
-
-key_code_map = {
-     1: 'TUR.ITA',
-     2: 'WAL.SUI',
-     3: 'DEN.FIN',
-     4: 'BEL.RUS',
-     5: 'ENG.CRO',
-     6: 'AUT.MKD',
-     7: 'NED.UKR',
-     8: 'SCO.CZE',
-     9: 'POL.SVK',
-     10: 'ESP.SWE',
-     11: 'HUN.POR',
-     12: 'FRA.GER',
-     13: 'FIN.RUS',
-     14: 'TUR.WAL',
-     15: 'ITA.SUI',
-     16: 'UKR.MKD',
-     17: 'DEN.BEL',
-     18: 'NED.AUT',
-     19: 'SWE.SVK',
-     20: 'CRO.CZE',
-     21: 'ENG.SCO',
-     22: 'HUN.FRA',
-     23: 'POR.GER',
-     24: 'ESP.POL',
-     25: 'SUI.TUR',
-     26: 'ITA.WAL',
-     27: 'MKD.NED',
-     28: 'UKR.AUT',
-     29: 'RUS.DEN',
-     30: 'FIN.BEL',
-     31: 'CRO.SCO',
-     32: 'CZE.ENG',
-     33: 'SWE.POL',
-     34: 'SVK.ESP',
-     35: 'POR.FRA',
-     36: 'GER.HUN' 
-     } 
-
-inv_key_code_map = {v:k for k,v in key_code_map.items()}
-
-ls_id_map = {80596: 1,
-             80595: 2,
-             80737: 3,
-             80736: 4,
-             80742: 5,
-             81035: 6,
-             81036: 7,
-             80743: 8,
-             80748: 9,
-             80749: 10,
-             80612: 11,
-             80611: 12,
-             80738: 13,
-             80598: 14,
-             80597: 15,
-             81037: 16,
-             80739: 17,
-             81038: 18,
-             80750: 19,
-             80745: 20,
-             80744: 21,
-             80613: 22,
-             80614: 23,
-             80751: 24,
-             80599: 25,
-             80600: 26,
-             81039: 27,
-             441209: 27,
-             81040: 28,
-             80741: 29,
-             80740: 30,
-             80747: 31,
-             80746: 32,
-             80753: 33,
-             80752: 34,
-             80615: 35,
-             80616: 36,
-            }
-
-ls_order_map = {
-             80042: (2, 2),
-             80043: (1, 2),
-             80046: (1, 3),
-             80044: (1, 3),
-             80045: (2, 2),
-             80047: (1, 3),
-             80048: (1, 2),
-             80049: (1, 3)
-             }
 
 
 def fetch_beautiful_markup(url):
@@ -170,7 +77,8 @@ def fetch_beautiful_markup(url):
     
     return parsed_markup
 
-def extract_scores(parsed_markup, stage=None):
+
+def extract_scores(parsed_markup, url, id_map, order_map={}, stage=None):
     # dictionary to contain score
     scores = {}
 
@@ -192,7 +100,7 @@ def extract_scores(parsed_markup, stage=None):
             home_team = from_livescore(matchup.split('-vs-')[0].strip())
             away_team = from_livescore(matchup.split('-vs-')[1].strip())
             try:
-                mid = ls_id_map[ls_id]
+                mid = id_map[ls_id]
             except KeyError:
                 try:
                     mid = fifa_codes[home_team] + '.' + fifa_codes[away_team]
@@ -205,7 +113,7 @@ def extract_scores(parsed_markup, stage=None):
                 teams = tuple(zip(teams, order))
             score = element.find("div", "sco").get_text().strip()
             minute = element.find("div", "min").get_text().strip()
-            match_path = parse.urljoin(euro_url, match_path)
+            match_path = parse.urljoin(url, match_path)
             if minute in ('AET', 'AP'):
                 score = fulltime_match_score(match_path)
             elif minute != 'FT':
@@ -224,7 +132,7 @@ def extract_scores(parsed_markup, stage=None):
             home_team = '-'.join(element.find("div", "tright").get_text().strip().split(" "))
             away_team = '-'.join(element.find(attrs={"class": "ply name"}).get_text().strip().split(" "))
             try:
-                mid = ls_id_map[ls_id]
+                mid = id_map[ls_id]
             except KeyError:
                 try:
                     mid = fifa_codes[home_team] + '.' + fifa_codes[away_team]
@@ -254,6 +162,7 @@ def extract_competition_stages(markup, comp):
     
     return stages
     
+
 def fulltime_match_score(match_url):
     """
     if a match goes to extra-time we want to get only
@@ -272,17 +181,33 @@ def fulltime_match_score(match_url):
     return score
 
 
-def scrape_scores_from_livescore(url, stage) :
-    parsed_markup = fetch_beautiful_markup(url)
-    scores = extract_scores(parsed_markup, stage)
+def scrape_scores_from_livescore(config, stage, url='https://www.livescores.com/soccer') :
+   """
+   scores scores for a given stage from livescore
+
+   config - dict containing livescore config for given tourney
+   """
+    comp_url = parse.urljoin(url, config['comp_key'])
+    id_map = config['id_map']
+    order_map = config['order_map']
+    parsed_markup = fetch_beautiful_markup(comp_url)
+    scores = extract_scores(parsed_markup, comp_url, id_map, stage)
     return scores
 
 
-def scrape_competition_from_livescore(comp_url):
+def scrape_competition_from_livescore(config):
+    """
+    scrape an entire compatition from livescore
+
+    config - dict contaiing livescor4e config for a given tourney
+    """
+    comp_url = parse.urljoin(url, config['comp_key'])
+    id_map = config['id_map']
+    order_map = config['order_map']
     res = {}
     comp = parse.urlparse(comp_url).path
     comp_markup = fetch_beautiful_markup(comp_url)
-    comp_scores = extract_scores(comp_markup)
+    comp_scores = extract_scores(comp_markup, comp_url, id_map)
     comp_stages = extract_competition_stages(comp_markup, comp)
     
     for g_name, g_url in comp_stages.items():
@@ -303,9 +228,18 @@ def scrape_competition_from_livescore(comp_url):
         
     return res
 
-def update_scrape_from_livescore(comp_scores, comp_url):
+
+def update_scrape_from_livescore(comp_scores, config):
+    """
+    update comp_scores from livescore
+
+    config - dict contaiing livescor4e config for a given tourney
+    """
+    comp_url = parse.urljoin(url, config['comp_key'])
+    id_map = config['id_map']
+    order_map = config['order_map']
     comp_markup = fetch_beautiful_markup(comp_url)
-    new_scores = extract_scores(comp_markup)
+    comp_scores = extract_scores(comp_markup, comp_url, id_map)
     for stage, stage_scores in new_scores.items():
         if stage in comp_scores:
             scores = comp_scores[stage].matches
