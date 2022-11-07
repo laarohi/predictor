@@ -1,0 +1,60 @@
+Project project_name {
+  database_type: 'MySQL'
+  Note: 'Description of the project'
+}
+
+Table participant {
+    id int [pk, increment]
+    name varchar [not null]
+    surname varchar [not null]
+    email varchar [not null]
+    competition_id int [not null]
+    created_at timestamp 
+
+    indexes {
+        (email, competition_id) [unique]
+    }
+}
+
+Table prediction {
+    id int [pk, increment]
+    home_score int [not null]
+    away_score int [not null]
+    match_id int [not null]
+    participant_id int [not null]
+
+    indexes {
+        match_id [name: 'match_id_index']
+        participant_id [name: 'participant_id_index']
+    }
+}
+
+Ref: participant.id < prediction.participant_id
+
+Table match {
+    id int [pk, increment]
+    home_team varchar [not null]
+    away_team varchar [not null]
+    kickoff timestamp [not null]
+    livescore_id int
+
+    indexes {
+        livescore_id [name: 'livescore_id_index']
+    }
+}
+
+Ref: match.id < prediction.match_id
+
+Table score {
+    id int [pk, increment]
+    home_score int [not null]
+    away_score int [not null]
+    match_id int [not null]
+    source varchar
+
+    indexes {
+        match_id [name: 'match_id_index']
+    }
+}
+
+Ref: match.id - score.match_id
