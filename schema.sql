@@ -1,6 +1,6 @@
 -- SQL dump generated using DBML (dbml-lang.org)
 -- Database: MySQL
--- Generated at: 2022-11-10T16:02:49.641Z
+-- Generated at: 2022-11-12T21:56:19.683Z
 
 CREATE TABLE `participant` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
@@ -15,7 +15,8 @@ CREATE TABLE `participant` (
 CREATE TABLE `competition` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
-  `entry_fee` varchar(255) NOT NULL
+  `description` varchar(255) NOT NULL,
+  `entry_fee` int NOT NULL
 );
 
 CREATE TABLE `prediction` (

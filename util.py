@@ -1,8 +1,10 @@
 import os.path
-from email_validator import validate_email
 import base64
-from email.message import EmailMessage
+import MySQLdb
 
+
+from email_validator import validate_email
+from email.message import EmailMessage
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -95,7 +97,9 @@ def gen_entry(services, full_name, email, competition_id, db, template_id, folde
     invite_participant(services['drive'], sheet_id, email, is_google_account)
 
     # add participant to database
-    db_add(db, full_name, email, competition_id, sheet_id)
+    query = """INSERT INTO participant (name , email , competition_id , sheet_id ) 
+            VALUES (%s,%s,%s,%s)"""
+    db_insert(db, query, (full_name, email, competition_id, sheet_id))
 
     sheet_url = 'https://docs.google.com/spreadsheets/d/' + sheet_id + '/edit'
 
@@ -232,6 +236,16 @@ def send_email_invite(service, email, sheet_url, subject):
 
 
 # ----------------------------- SQL FUNCTIONS ---------------------------------- #
+
+def db_setup(config):
+    user = config['user']
+    passwd = config['passwd']
+    db = config['db']
+    user = os.environ.get(user, user)
+    passwd = os.environ.get(passwd, passwd)
+    db = os.environ.get(db, db)
+    db = MySQLdb.connect(passwd=passwd, user=user, db='wc2022')
+    return db
         
 def db_check(db, email, competition_id):
     db.commit()
@@ -255,15 +269,25 @@ def db_get(db, table, id, what):
     c.close()
     return res
 
-def db_add(db, full_name, email, competition_id, sheet_id):
+def db_getall(db, table, what):
     db.commit()
-    query = """INSERT INTO participant (name , email , competition_id , sheet_id ) 
-            VALUES (%s,%s,%s,%s)"""
+    res = None
+    query = f"SELECT {what} from {table}"
     c = db.cursor()
-    c.execute(query, (full_name, email, competition_id, sheet_id))
+    exists = c.execute(query)
+    if exists:
+        res = c.fetchall()
+    c.close()
+    return res
+
+def db_insert(db, query, entry):
+    db.commit()
+    c = db.cursor()
+    c.execute(query, entry)
     db.commit()
     c.close()
     return
+    
 
 if 1 and __name__ == '__main__':
     import MySQLdb

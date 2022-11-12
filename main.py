@@ -1,9 +1,7 @@
 import re
-import os
 from datetime import datetime
 from dateutil.tz import gettz
 
-import MySQLdb
 import yaml
 import dash
 from dash import dcc, ctx, html
@@ -11,7 +9,7 @@ import dash_bootstrap_components as dbc
 from pandas import DataFrame
 from dash.dependencies import Input, Output, State
 #from predictor import Tournament
-from sheet import gen_entry, build_services, get_creds
+from util import db_getall, db_setup, gen_entry, build_services, get_creds
 
 utc = gettz('UTC')
 mlt = gettz('Europe/Malta')
@@ -37,7 +35,7 @@ def prep_standings(df):
 #------------------------------ LOAD DATA ------------------------------- #
 
 with open('./tournaments/worldcup2022/metadata.yml', 'r') as f:
-    config = yaml.load(f)
+    config = yaml.load(f, Loader=yaml.Loader)
 
 #tournament = Tournament('./', 'https://www.livescores.com/soccer/euro-2020/')
 
@@ -57,13 +55,7 @@ app  = dash.Dash(__name__ , external_stylesheets=external_stylesheets)
 server = app.server
 app.title = config['tournament']
 app.config.suppress_callback_exceptions = True
-user = config['sql']['user']
-passwd = config['sql']['passwd']
-db = config['sql']['db']
-user = os.environ.get(user, user)
-passwd = os.environ.get(passwd, passwd)
-db = os.environ.get(db, db)
-db = MySQLdb.connect(passwd=passwd, user=user, db='wc2022')
+db = db_setup(config['sql'])
 creds = get_creds()
 services = build_services(creds)
 template_id = config['google_api']['template_id']
@@ -230,15 +222,14 @@ email_input = html.Div(
     className="mb-3",
 )
 
+comps = db_getall(db, 'competition', '*')
+comp_options = [{"label": f"{desc} (€{fee})", "value":cid} for cid, name, desc, fee in comps]
 # eventually the options should come from sql
 competition_input = html.Div(
     [
         dbc.Label("Competition", html_for="competition-form"),
         dbc.Select(
-                    options=[
-                        {"label": "Main Competition (€25)", "value": 1},
-                        {"label": "Ta' Giorni Wanderers (€10)", "value": 2},
-                    ],
+                    options=comp_options,
                     id="competition-form"
         ),
     ],
@@ -255,7 +246,7 @@ form_button = html.Div(id='div-submit-form', className="d-grid gap-2", children=
                     html.H4("Sign up successful!", className="alert-heading"),
                     html.P(
                         "The next step is to check your email for an invitation link"
-                        " to your google sheet which must be completed by Sunday 20th November @ 3pm."
+                        " to your Google Sheet which must be completed by Sunday 20th November @ 3pm."
                     ),
                     html.Hr(),
                     html.P(
@@ -311,44 +302,6 @@ form = dbc.Row(
     align="center",
     justify="center",
     )
-
-@app.callback(
-    Output("submit-success-alert", "is_open"),
-    Output("submit-fail-alert", "is_open"),
-    Output("alert-error-text", "children"),
-    Input("submit-button", "n_clicks"),
-    Input("name-form", "value"),
-    Input("surname-form", "value"),
-    Input("email-form", "value"),
-    Input("competition-form", "value"),
-    Input("email-form", "valid"),
-    State("submit-success-alert", "is_open"),
-)
-def handle_form(n_clicks, name, surname, email, competition, valid_email, is_success):
-    """
-    submit entry to db and generate link
-    """
-    tid = ctx.triggered_id
-    if not tid or tid != "submit-button" or not n_clicks:
-        return False, False, ""
-    elif is_success:
-        return True, False, ""
-    else:
-        # attempt to submit
-        if not all([name, surname, email, competition, valid_email]):
-            error_msg = 'Missing input, please fill in all your details and try again.'
-            return False, True, error_msg
-        full_name = name.strip().capitalize() + ' ' + surname.strip().capitalize()
-        email = email.strip().lower()
-
-        try:
-            gen_entry(services, full_name, email, competition, db, 
-                    template_id, folder_id, config['tournament'])
-            return True, False, ""
-        except Exception as e:
-            return False, True, str(e)
-
-
 
     
 signup_tab_content = dbc.Card(
@@ -483,6 +436,42 @@ app.layout = dbc.Container(
     )
 
 # --- Callbacks --- #
+@app.callback(
+    Output("submit-success-alert", "is_open"),
+    Output("submit-fail-alert", "is_open"),
+    Output("alert-error-text", "children"),
+    Input("submit-button", "n_clicks"),
+    Input("name-form", "value"),
+    Input("surname-form", "value"),
+    Input("email-form", "value"),
+    Input("competition-form", "value"),
+    Input("email-form", "valid"),
+    State("submit-success-alert", "is_open"),
+)
+def handle_form(n_clicks, name, surname, email, competition, valid_email, is_success):
+    """
+    submit entry to db and generate link
+    """
+    tid = ctx.triggered_id
+    if not tid or tid != "submit-button" or not n_clicks:
+        return False, False, ""
+    elif is_success:
+        return True, False, ""
+    else:
+        # attempt to submit
+        if not all([name, surname, email, competition, valid_email]):
+            error_msg = 'Missing input, please fill in all your details and try again.'
+            return False, True, error_msg
+        full_name = name.strip().capitalize() + ' ' + surname.strip().capitalize()
+        email = email.strip().lower()
+
+        try:
+            gen_entry(services, full_name, email, competition, db, 
+                    template_id, folder_id, config['tournament'])
+            return True, False, ""
+        except Exception as e:
+            return False, True, str(e)
+
 @app.callback(
     [Output("email-form", "valid"), Output("email-form", "invalid")],
     [Input("email-form", "value")],

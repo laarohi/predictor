@@ -8,17 +8,16 @@ google_api:
 sql:
     host: localhost
     user: root
-    passwd: MYSQL_PASS
+    passwd: '!QAZmko0'
     db: wc2022
 
 competitions:
-    main:
-        name: 'Main'
+    Main:
+        desc: Main Competition
         entry_fee: 25
-    tgw:
-        name: 'Ta Giorni Wanderers'
+    TGW:
+        desc: Ta' Giorni Wanderers
         entry_fee: 10
-
 
 scoring:
     Phase I:

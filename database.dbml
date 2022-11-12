@@ -20,7 +20,8 @@ Table participant {
 Table competition {
     id int [pk, increment]
     name varchar [not null]
-    entry_fee varchar [not null]
+    description varchar [not null]
+    entry_fee int [not null]
 }
 
 Ref: competition.id < participant.competition_id
