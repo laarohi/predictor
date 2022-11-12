@@ -1,0 +1,61 @@
+tournament: 'World Cup Predictor 2022'
+
+google_api:
+  template_id: '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
+  folder_id: '1wTnX3wApK8Mpe7LkptJSDPCIHhuOuxyR'
+
+#host user and passwd can be either environment variables or values
+sql:
+    host: localhost
+    user: root
+    passwd: MYSQL_PASS
+    db: wc2022
+
+competitions:
+    main:
+        name: 'Main'
+        entry_fee: 25
+    tgw:
+        name: 'Ta Giorni Wanderers'
+        entry_fee: 10
+
+
+scoring:
+    Phase I:
+        Group Stage:
+            outcome: 5
+            result: 15
+        Round of 16:
+            qualified: 10
+            ordering: 5
+        Semi-Finals:
+            qualified: 30
+        Final:
+            qualified: 40
+        Winner:
+            qualified: 70
+        Bonus:
+            qualified: 15
+    
+    Phase II:
+        Round of 16:
+            qualified: 0
+            result: 10
+        Quarter-Finals:
+            result: 10
+            qualified: 10
+        Semi-Finals:
+            result: 10
+            qualified: 20
+        Final:
+            result: 10
+            qualified: 30
+        Winner:
+            qualified: 50
+            
+    
+bonus:
+    - Group Stage Top Team
+    - Top Scorer
+    - Best Young Player
+
