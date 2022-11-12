@@ -1,14 +1,21 @@
 -- SQL dump generated using DBML (dbml-lang.org)
 -- Database: MySQL
--- Generated at: 2022-11-07T07:52:13.284Z
+-- Generated at: 2022-11-10T16:02:49.641Z
 
 CREATE TABLE `participant` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
-  `surname` varchar(255) NOT NULL,
   `email` varchar(255) NOT NULL,
   `competition_id` int NOT NULL,
-  `created_at` timestamp
+  `sheet_id` varchar(255) NOT NULL,
+  `paid` bit,
+  `created_at` timestamp NOT NULL DEFAULT (now())
+);
+
+CREATE TABLE `competition` (
+  `id` int PRIMARY KEY AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `entry_fee` varchar(255) NOT NULL
 );
 
 CREATE TABLE `prediction` (
@@ -44,6 +51,8 @@ CREATE INDEX `participant_id_index` ON `prediction` (`participant_id`);
 CREATE INDEX `livescore_id_index` ON `match` (`livescore_id`);
 
 CREATE INDEX `match_id_index` ON `score` (`match_id`);
+
+ALTER TABLE `participant` ADD FOREIGN KEY (`competition_id`) REFERENCES `competition` (`id`);
 
 ALTER TABLE `prediction` ADD FOREIGN KEY (`participant_id`) REFERENCES `participant` (`id`);
 

@@ -6,15 +6,24 @@ Project project_name {
 Table participant {
     id int [pk, increment]
     name varchar [not null]
-    surname varchar [not null]
     email varchar [not null]
     competition_id int [not null]
-    created_at timestamp 
+    sheet_id varchar [not null]
+    paid bit 
+    created_at timestamp [not null, default: `now()`]
 
     indexes {
         (email, competition_id) [unique]
     }
 }
+
+Table competition {
+    id int [pk, increment]
+    name varchar [not null]
+    entry_fee varchar [not null]
+}
+
+Ref: competition.id < participant.competition_id
 
 Table prediction {
     id int [pk, increment]
