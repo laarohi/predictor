@@ -259,7 +259,7 @@ email_input = html.Div(
         dbc.Label("Email", html_for="email-form"),
         dbc.Input(type="email", id="email-form", placeholder="Enter email"),
         dbc.FormText(
-            "A google adress is preferable but any email will work.",
+            "A google address is preferable but any email will work.",
             color="secondary",
         ),
         dbc.FormFeedback(
