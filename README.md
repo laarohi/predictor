@@ -1,6 +1,6 @@
 A small project which I wrote for a competition I hosted amongst friends.
 
-The aim of the competition was to predict the outcome of all games at the EURO 2020.
+The aim of the competition was to predict the outcome of a given tournament.
 The predictions were split into two phases, and the scoring was totally customisable through the config yaml.
 
 The progress of each player was displayed through a dash webapp. This webapp was linked to livescores.com and would update in realtime whenever a team scores.
