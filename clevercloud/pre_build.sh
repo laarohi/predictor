@@ -1,2 +1,2 @@
- echo ${GOOGLE_TOKEN} > /google-token.json
+ echo ${GOOGLE_TOKEN} > google-token.json
 
