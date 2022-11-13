@@ -1,4 +1,6 @@
+import os
 import re
+import logging
 from datetime import datetime
 from dateutil.tz import gettz
 
@@ -10,6 +12,9 @@ from pandas import DataFrame
 from dash.dependencies import Input, Output, State
 #from predictor import Tournament
 from util import db_getall, db_setup, gen_entry, build_services, get_creds
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
 utc = gettz('UTC')
 mlt = gettz('Europe/Malta')
@@ -32,10 +37,16 @@ def prep_standings(df):
     df = df[cols]
     tbl = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
     return tbl
+
 #------------------------------ LOAD DATA ------------------------------- #
 
-with open('./tournaments/worldcup2022/metadata.yml', 'r') as f:
+metadata_path = os.environ.get("METADATA_YML", './tournaments/worldcup2022/metadata.yml')
+
+with open(metadata_path, 'r') as f:
     config = yaml.load(f, Loader=yaml.Loader)
+
+logging.debug(f"loaded config: {config}")
+
 
 #tournament = Tournament('./', 'https://www.livescores.com/soccer/euro-2020/')
 
@@ -50,16 +61,19 @@ color_code = {'Group Stage': 'primary',
 # ----------------------------- DASH ---------------------------------- #
 
 
+db = db_setup(config['sql'])
+logger.debug(f"connected to mysql database successfully: {db}")
+creds = get_creds()
+services = build_services(creds)
+logger.debug(f"build google services successfully")
+template_id = config['google_api']['template_id']
+folder_id = config['google_api']['folder_id']
+
 external_stylesheets=[dbc.themes.SUPERHERO]
 app  = dash.Dash(__name__ , external_stylesheets=external_stylesheets)
 server = app.server
 app.title = config['tournament']
 app.config.suppress_callback_exceptions = True
-db = db_setup(config['sql'])
-creds = get_creds()
-services = build_services(creds)
-template_id = config['google_api']['template_id']
-folder_id = config['google_api']['folder_id']
 
 def get_score_cards(matches, tdy=None):
     cards = []
