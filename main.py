@@ -45,7 +45,8 @@ metadata_path = os.environ.get("METADATA_YML", './tournaments/worldcup2022/metad
 with open(metadata_path, 'r') as f:
     config = yaml.load(f, Loader=yaml.Loader)
 
-logging.debug(f"loaded config: {config}")
+logging.info(f"loaded config: {config}")
+print(f"loaded config: {config}")
 
 
 #tournament = Tournament('./', 'https://www.livescores.com/soccer/euro-2020/')
@@ -62,10 +63,10 @@ color_code = {'Group Stage': 'primary',
 
 
 db = db_setup(config['sql'])
-logger.debug(f"connected to mysql database successfully: {db}")
+logger.info(f"connected to mysql database successfully: {db}")
 creds = get_creds()
 services = build_services(creds)
-logger.debug(f"build google services successfully")
+logger.info(f"build google services successfully")
 template_id = config['google_api']['template_id']
 folder_id = config['google_api']['folder_id']
 
