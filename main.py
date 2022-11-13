@@ -68,7 +68,7 @@ logger.info(f"build google services successfully")
 template_id = config['google_api']['template_id']
 folder_id = config['google_api']['folder_id']
 
-external_stylesheets=[dbc.themes.SUPERHERO]
+external_stylesheets=[dbc.themes.MINTY]
 app  = dash.Dash(__name__ , external_stylesheets=external_stylesheets)
 server = app.server
 app.title = config['tournament']
@@ -126,7 +126,6 @@ rules_tab_content = dbc.Card(
                         style={
                             "width": "100%",
                             "text-align": "center",
-                            "padding-bottom": "2%",
                         },
                     ),
                     html.Hr(),
@@ -153,9 +152,8 @@ rules_tab_content = dbc.Card(
                 dbc.Col(
                     [
                         dbc.Card([
+                            dbc.CardHeader('Phase I'),
                             dbc.CardBody(className='card-text', children=[
-                                html.H4('Phase I', className='card-title'),
-                                html.Hr(),
                                 html.P('Deadline: 3pm on Sunday 20th November 2022',className='card-text'),
                                 html.Hr(),
                                 html.P("These predictions will be made before the start of the competition."
@@ -163,7 +161,7 @@ rules_tab_content = dbc.Card(
                                 "competition Semi-Finalists, Finalists and Winners."
                                  " There are a number of bonus questions for extra points."),
                                 html.Hr(),
-                                html.H5("Point System"),
+                                html.H6("Point System:"),
                                 html.Ul(children=[
                                     html.Li("5 pts for correct result: 1-X-2 OR 15 pts for correct score (Group Stage Only)"),
                                     html.Li("10 pts for each correct Round of 16 team"),
@@ -175,21 +173,24 @@ rules_tab_content = dbc.Card(
                                     html.Li("20 pts for each correct knockout stage bonus question",),
                                 ])
                             ]),
-                        ], style={'width': ''})
+                        ], 
+                        style={'width': ''},
+                        color='primary',
+                        outline=True,
+                        )
                     ], lg='6'),
                 dbc.Col(
                     [
                         dbc.Card([
+                            dbc.CardHeader('Phase II'),
                             dbc.CardBody(className='card-text', children=[
-                                html.H4('Phase II', className='card-title'),
-                                html.Hr(),
                                 html.P('Deadline: 2pm on Saturday 3rd December 2022',className='card-text'),
                                 html.Hr(),
                                 html.P("These predictions will be made between the end of the group stage and the start of the knockout stage."
                                 " One must fill out their knockout bracket for the rest of the tournament."
                                  "Points for the correct score are only given if both teams are predicted correctly."),
                                 html.Hr(),
-                                html.H5("Point System"),
+                                html.H6("Point System:"),
                                 html.Ul(children=[
                                     html.Li("10 pts for correct score (only if teams are predicted correctly)"),
                                     html.Li("10 pts for each correct Quarter Finalist",),
@@ -198,7 +199,11 @@ rules_tab_content = dbc.Card(
                                     html.Li("50 pts for the correct Winner",),
                                 ])
                             ]),
-                        ], style={'width': ''})
+                        ],
+                        style={'width': ''},
+                        color='primary',
+                        outline=True,
+                        )
 
                     ], lg='6'),
             ],
@@ -206,25 +211,33 @@ rules_tab_content = dbc.Card(
             dbc.Row( children=[
                 dbc.Col([
                         dbc.Card([
+                            dbc.CardHeader('Prize Split'),
                             dbc.CardBody(className='card-text', children=[
-                                html.H4('Prize Split', className='card-title'),
                                 html.P("The actual prize split will be updated once the price pool is known but the prize split will be as follows:"),
                                 html.Ul(children=[
-                                    html.Li("60/% to Overall Winner"),
-                                    html.Li("20/% to Overall Runner Up"),
-                                    html.Li("10/% to Group Stage Winner"),
-                                    html.Li("10/% to Phase II Winner"),
+                                    html.Li("60% to Overall Winner"),
+                                    html.Li("20% to Overall Runner Up"),
+                                    html.Li("10% to Group Stage Winner"),
+                                    html.Li("10% to Phase II Winner"),
                                 ]),
                                 html.P("The Group Stage Winner will be the person who has the most points after the Group Stage is complete.")
 
                             ]),
-                        ], style={'width': ''})
+                        ],
+                        style={'width': ''},
+                        color='primary',
+                        outline=True,
+                        )
                     ], lg='12'),
             ],
-            class_name='row gy-2'),
+            class_name='row gy-2',
+            style = {'margin-top':'10px'},),
        ],
     ),
     className="mt-3",
+    color='primary',
+    outline=True,
+
 )
 
 name_input = html.Div(
