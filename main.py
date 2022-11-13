@@ -129,6 +129,24 @@ rules_tab_content = dbc.Card(
                             "padding-bottom": "2%",
                         },
                     ),
+                    html.Hr(),
+                    html.P([
+                        "Welcome to the World Cup 2022 Predictor. "
+                        "This is just a small predictor game that I set up for friends where everyone tries to predict the outcomes"
+                        " of the 2022 World Cup. Once the tournament gets underway, everyones predictions and the predictor standings will be displayed here. "
+                        "For now all you need to do is sign up by clicking on the Sign Up tab and fill in the Google Sheet that you will receive "
+                        "via email. Once signed up, don't forget to confirm your entry by sending me your entry fee via ",
+                        html.A(
+                            "Revolut.", 
+                            href="https://revolut.me/laarohi", 
+                            className="rev-link",
+                            target="_blank",
+                        ),
+                    ]
+                    ),
+                    html.Hr(),
+                    html.P("The predictor is divided into two phases as follows:"),
+                    html.Hr(),
             ], lg='12')
             ]),
             dbc.Row( children=[
@@ -137,10 +155,11 @@ rules_tab_content = dbc.Card(
                         dbc.Card([
                             dbc.CardBody(className='card-text', children=[
                                 html.H4('Phase I', className='card-title'),
+                                html.Hr(),
                                 html.P('Deadline: 3pm on Sunday 20th November 2022',className='card-text'),
                                 html.Hr(),
                                 html.P("These predictions will be made before the start of the competition."
-                                "One must predict the results of all the group stage games as well as their "
+                                " One must predict the results of all the group stage games as well as their "
                                 "competition Semi-Finalists, Finalists and Winners."
                                  " There are a number of bonus questions for extra points."),
                                 html.Hr(),
@@ -163,10 +182,11 @@ rules_tab_content = dbc.Card(
                         dbc.Card([
                             dbc.CardBody(className='card-text', children=[
                                 html.H4('Phase II', className='card-title'),
+                                html.Hr(),
                                 html.P('Deadline: 2pm on Saturday 3rd December 2022',className='card-text'),
                                 html.Hr(),
                                 html.P("These predictions will be made between the end of the group stage and the start of the knockout stage."
-                                "One must fill out their knockout bracket for the rest of the tournament."
+                                " One must fill out their knockout bracket for the rest of the tournament."
                                  "Points for the correct score are only given if both teams are predicted correctly."),
                                 html.Hr(),
                                 html.H5("Point System"),
@@ -194,7 +214,9 @@ rules_tab_content = dbc.Card(
                                     html.Li("20/% to Overall Runner Up"),
                                     html.Li("10/% to Group Stage Winner"),
                                     html.Li("10/% to Phase II Winner"),
-                                ])
+                                ]),
+                                html.P("The Group Stage Winner will be the person who has the most points after the Group Stage is complete.")
+
                             ]),
                         ], style={'width': ''})
                     ], lg='12'),
