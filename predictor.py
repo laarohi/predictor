@@ -89,7 +89,7 @@ def extract_scores(parsed_markup, url, id_map, order_map={}, stage=None):
         match_dt = element.get('data-esd')
         if match_dt:
             match_dt = datetime.strptime(match_dt, '%Y%m%d%H%M%S')
-        order = ls_order_map.get(ls_id, None)
+        order = order_map.get(ls_id, None)
 
         if match_name_element is not None :
             # this means the match is about to be played
@@ -181,17 +181,17 @@ def fulltime_match_score(match_url):
     return score
 
 
-def scrape_scores_from_livescore(config, stage, url='https://www.livescores.com/soccer') :
-   """
-   scores scores for a given stage from livescore
-
-   config - dict containing livescore config for given tourney
-   """
-    comp_url = parse.urljoin(url, config['comp_key'])
+def scrape_scores_from_livescore(config, stage) :
+    """
+    scores scores for a given stage from livescore
+    
+    config - dict containing livescore config for given tourney
+    """
+    comp_url = parse.urljoin(config['url'], config['comp_key'])
     id_map = config['id_map']
     order_map = config['order_map']
     parsed_markup = fetch_beautiful_markup(comp_url)
-    scores = extract_scores(parsed_markup, comp_url, id_map, stage)
+    scores = extract_scores(parsed_markup, comp_url, id_map, order_map, stage)
     return scores
 
 
@@ -201,13 +201,13 @@ def scrape_competition_from_livescore(config):
 
     config - dict contaiing livescor4e config for a given tourney
     """
-    comp_url = parse.urljoin(url, config['comp_key'])
+    comp_url = parse.urljoin(config['url'], config['comp_key'])
     id_map = config['id_map']
     order_map = config['order_map']
     res = {}
     comp = parse.urlparse(comp_url).path
     comp_markup = fetch_beautiful_markup(comp_url)
-    comp_scores = extract_scores(comp_markup, comp_url, id_map)
+    comp_scores = extract_scores(comp_markup, comp_url, order_map, id_map)
     comp_stages = extract_competition_stages(comp_markup, comp)
     
     for g_name, g_url in comp_stages.items():
@@ -235,11 +235,11 @@ def update_scrape_from_livescore(comp_scores, config):
 
     config - dict contaiing livescor4e config for a given tourney
     """
-    comp_url = parse.urljoin(url, config['comp_key'])
+    comp_url = parse.urljoin(config['url'], config['comp_key'])
     id_map = config['id_map']
     order_map = config['order_map']
     comp_markup = fetch_beautiful_markup(comp_url)
-    comp_scores = extract_scores(comp_markup, comp_url, id_map)
+    new_scores = extract_scores(comp_markup, comp_url, id_map, order_map)
     for stage, stage_scores in new_scores.items():
         if stage in comp_scores:
             scores = comp_scores[stage].matches
