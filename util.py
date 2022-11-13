@@ -1,6 +1,7 @@
 import os.path
 import base64
 import MySQLdb
+import yaml
 
 
 from email_validator import validate_email
@@ -11,6 +12,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+
+metadata_path = os.environ.get("METADATA_YML", './tournaments/worldcup2022/metadata.yml')
+with open(metadata_path, 'r') as f:
+    config = yaml.load(f, Loader=yaml.Loader)
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = [
@@ -73,15 +78,15 @@ def gen_entry(services, full_name, email, competition_id, db, template_id, folde
     is_google_account = "google.com" in r.spf
 
     # check if participant already exists in db
-    existing_sheet = db_check(db, email, competition_id)
+    query = f"SELECT sheet_id from participant WHERE {email=} and {competition_id=}"
+    existing_sheet = db.query(query)
     if existing_sheet:
         # email competition_id combo already registered return it
-        #sheet_url = 'https://docs.google.com/spreadsheets/d/' + existing_sheet + '/edit'
         error_msg = f"A sign up for the selected competition with the email address {email} already exists."
         raise KeyError(error_msg)
     
     # get competition name from db
-    competition = db_get(db, 'competition', competition_id, 'name')
+    competition = db.get('competition', 'name', competition_id)[0][0]
 
     # duplicating template sheet
     file_name = ' '.join([tournament, full_name, competition])
@@ -99,7 +104,7 @@ def gen_entry(services, full_name, email, competition_id, db, template_id, folde
     # add participant to database
     query = """INSERT INTO participant (name , email , competition_id , sheet_id ) 
             VALUES (%s,%s,%s,%s)"""
-    db_insert(db, query, (full_name, email, competition_id, sheet_id))
+    db.query(query, (full_name, email, competition_id, sheet_id))
 
     sheet_url = 'https://docs.google.com/spreadsheets/d/' + sheet_id + '/edit'
 
@@ -237,66 +242,57 @@ def send_email_invite(service, email, sheet_url, subject):
 
 # ----------------------------- SQL FUNCTIONS ---------------------------------- #
 
-def db_setup(config):
-    host = config['host']
-    user = config['user']
-    passwd = config['passwd']
-    db = config['db']
-    host = os.environ.get(host, host)
-    user = os.environ.get(user, user)
-    passwd = os.environ.get(passwd, passwd)
-    db = os.environ.get(db, db)
-    db = MySQLdb.connect(host=host, passwd=passwd, user=user, db=db)
-    return db
+class DB:
+    
+    def __init__(self, config):
+        host = config['host']
+        user = config['user']
+        passwd = config['passwd']
+        db = config['db']
+        self.host = os.environ.get(host, host)
+        self.user = os.environ.get(user, user)
+        self.passwd = os.environ.get(passwd, passwd)
+        self.db = os.environ.get(db, db)
+        self.conn = None
+
+    def _reconnect(func):
+        def wrapper(self, *args, **kwargs):
+            try:
+                self.conn.commit()
+            except (AttributeError, MySQLdb.OperationalError):
+                self.connect()
+            res = func(self, *args, **kwargs)
+            self.conn.commit()
+            return res
+        return wrapper
+            
+    def connect(self):
+        self.conn = MySQLdb.connect(host=self.host, passwd=self.passwd, user=self.user, db=self.db)
+    
+    @_reconnect
+    def query(self, query, args=()):
+        res = None
+        c = self.conn.cursor()
+        exists = c.execute(query, args)
+        if exists:
+            res = c.fetchall()
+        c.close()
+        return res
+    
+    def get(self, table, what, id=None):
+        query = f"SELECT {what} from {table}"
+        if id:
+            query += f" WHERE id={id}"
+        res = self.query(query)
+        return res
+    
         
-def db_check(db, email, competition_id):
-    db.commit()
-    res = None
-    query = "SELECT sheet_id from participant WHERE email=%s and competition_id=%s"
-    c = db.cursor()
-    exists = c.execute(query, (email, competition_id))
-    if exists:
-        res = c.fetchone()[0]
-    c.close()
-    return res
-
-def db_get(db, table, id, what):
-    db.commit()
-    res = None
-    query = f"SELECT {what} from {table} WHERE id={id}"
-    c = db.cursor()
-    exists = c.execute(query)
-    if exists:
-        res = c.fetchone()[0]
-    c.close()
-    return res
-
-def db_getall(db, table, what):
-    db.commit()
-    res = None
-    query = f"SELECT {what} from {table}"
-    c = db.cursor()
-    exists = c.execute(query)
-    if exists:
-        res = c.fetchall()
-    c.close()
-    return res
-
-def db_insert(db, query, entry):
-    db.commit()
-    c = db.cursor()
-    c.execute(query, entry)
-    db.commit()
-    c.close()
-    return
     
 
 if 1 and __name__ == '__main__':
     import MySQLdb
     import os
-    user = os.environ.get('MYSQL_USER', 'root')
-    passwd = os.environ['MYSQL_PASS']
-    db = MySQLdb.connect(passwd=passwd, user=user, db='wc2022')
+    db = DB(config['sql'])
     creds = get_creds()
     tid = '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
     fid = '1wTnX3wApK8Mpe7LkptJSDPCIHhuOuxyR'

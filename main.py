@@ -11,7 +11,7 @@ import dash_bootstrap_components as dbc
 from pandas import DataFrame
 from dash.dependencies import Input, Output, State
 #from predictor import Tournament
-from util import db_getall, db_setup, gen_entry, build_services, get_creds
+from util import DB, config, gen_entry, build_services, get_creds
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -40,10 +40,6 @@ def prep_standings(df):
 
 #------------------------------ LOAD DATA ------------------------------- #
 
-metadata_path = os.environ.get("METADATA_YML", './tournaments/worldcup2022/metadata.yml')
-
-with open(metadata_path, 'r') as f:
-    config = yaml.load(f, Loader=yaml.Loader)
 
 logging.info(f"loaded config: {config}")
 print(f"loaded config: {config}")
@@ -62,7 +58,7 @@ color_code = {'Group Stage': 'primary',
 # ----------------------------- DASH ---------------------------------- #
 
 
-db = db_setup(config['sql'])
+db = DB(config['sql'])
 logger.info(f"connected to mysql database successfully: {db}")
 token = os.environ.get("GOOGLE_APP_TOKEN", "google_token.json")
 creds_file = os.environ.get("GOOGLE_APP_CREDENTIALS", "google_credentials.json")
@@ -239,7 +235,7 @@ email_input = html.Div(
     className="mb-3",
 )
 
-comps = db_getall(db, 'competition', '*')
+comps = db.get('competition', '*')
 comp_options = [{"label": f"{desc} (€{fee})", "value":cid} for cid, name, desc, fee in comps]
 # eventually the options should come from sql
 competition_input = html.Div(
