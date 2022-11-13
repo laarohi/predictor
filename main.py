@@ -64,7 +64,9 @@ color_code = {'Group Stage': 'primary',
 
 db = db_setup(config['sql'])
 logger.info(f"connected to mysql database successfully: {db}")
-creds = get_creds(token='google_token.json', creds_file=None)
+token = os.environ.get("GOOGLE_APP_TOKEN", "google_token.json")
+creds_file = os.environ.get("GOOGLE_APP_CREDENTIALS", "google_credentials.json")
+creds = get_creds(token, creds_file)
 services = build_services(creds)
 logger.info(f"build google services successfully")
 template_id = config['google_api']['template_id']
