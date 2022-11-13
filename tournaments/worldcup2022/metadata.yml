@@ -6,10 +6,10 @@ google_api:
 
 #host user and passwd can be either environment variables or values
 sql:
-    host: localhost
-    user: root
-    passwd: '!QAZmko0'
-    db: wc2022
+    host: MYSQL_ADDON_HOST
+    user: MYSQL_ADDON_USER
+    passwd: MYSQL_ADDON_PASSWORD
+    db: MYSQL_ADDON_DB
 
 competitions:
     Main:

@@ -8,3 +8,5 @@ xlrd
 openpyxl
 gunicorn
 dash-bootstrap-components
+MySQLdb
+

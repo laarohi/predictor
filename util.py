@@ -238,13 +238,15 @@ def send_email_invite(service, email, sheet_url, subject):
 # ----------------------------- SQL FUNCTIONS ---------------------------------- #
 
 def db_setup(config):
+    host = config['host']
     user = config['user']
     passwd = config['passwd']
     db = config['db']
+    host = os.environ.get(host, host)
     user = os.environ.get(user, user)
     passwd = os.environ.get(passwd, passwd)
     db = os.environ.get(db, db)
-    db = MySQLdb.connect(passwd=passwd, user=user, db='wc2022')
+    db = MySQLdb.connect(host=host, passwd=passwd, user=user, db=db)
     return db
         
 def db_check(db, email, competition_id):
