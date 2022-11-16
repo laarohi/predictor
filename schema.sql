@@ -1,6 +1,6 @@
 -- SQL dump generated using DBML (dbml-lang.org)
 -- Database: MySQL
--- Generated at: 2022-11-12T21:56:19.683Z
+-- Generated at: 2022-11-16T19:42:00.671Z
 
 CREATE TABLE `participant` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
@@ -27,12 +27,13 @@ CREATE TABLE `prediction` (
   `participant_id` int NOT NULL
 );
 
-CREATE TABLE `match` (
+CREATE TABLE `fixtures` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
   `home_team` varchar(255) NOT NULL,
   `away_team` varchar(255) NOT NULL,
   `kickoff` timestamp NOT NULL,
-  `livescore_id` int
+  `livescore_id` int NOT NULL,
+  `stage` varchar(255) NOT NULL
 );
 
 CREATE TABLE `score` (
@@ -49,14 +50,14 @@ CREATE INDEX `match_id_index` ON `prediction` (`match_id`);
 
 CREATE INDEX `participant_id_index` ON `prediction` (`participant_id`);
 
-CREATE INDEX `livescore_id_index` ON `match` (`livescore_id`);
+CREATE UNIQUE INDEX `livescore_id_index` ON `fixtures` (`livescore_id`);
 
-CREATE INDEX `match_id_index` ON `score` (`match_id`);
-
-ALTER TABLE `participant` ADD FOREIGN KEY (`competition_id`) REFERENCES `competition` (`id`);
+CREATE UNIQUE INDEX `match_id_index` ON `score` (`match_id`);
 
 ALTER TABLE `prediction` ADD FOREIGN KEY (`participant_id`) REFERENCES `participant` (`id`);
 
-ALTER TABLE `prediction` ADD FOREIGN KEY (`match_id`) REFERENCES `match` (`id`);
+ALTER TABLE `prediction` ADD FOREIGN KEY (`match_id`) REFERENCES `fixtures` (`id`);
 
-ALTER TABLE `score` ADD FOREIGN KEY (`match_id`) REFERENCES `match` (`id`);
+ALTER TABLE `score` ADD FOREIGN KEY (`match_id`) REFERENCES `fixtures` (`id`);
+
+ALTER TABLE `participant` ADD FOREIGN KEY (`competition_id`) REFERENCES `competition` (`id`);

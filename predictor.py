@@ -83,9 +83,41 @@ def extract_scores(parsed_markup, url, id_map, order_map={}, stage=None):
     scores = {}
 
     # scrape needed data from the parsed markup
-    for element in parsed_markup.find_all("div", "row-gray") :
+    for element in parsed_markup.select('[data-testid|="football_match_row"]') :
+        match_path = element.select_one('a').get('href')
+        match_stage, matchup, ls_id = match_path.split('/')[-4:-1]
+        match_stage = from_livescore(match_stage)
+        home_team = from_livescore(matchup.split('-vs-')[0].strip())
+        away_team = from_livescore(matchup.split('-vs-')[1].strip())
+
+        # this needs to be linked to sql now
+        try:
+            mid = id_map[ls_id]
+        except KeyError:
+            try:
+                mid = fifa_codes[home_team] + '.' + fifa_codes[away_team]
+            except KeyError:
+                mid = ls_id
+        minute = element.select_one('[data-testid~="status_or_time"]').get_text()
+        home_score = element.select_one('[data-testid^="football_match_row-home_score"]').get_text()
+        away_score = element.select_one('[data-testid^="football_match_row-away_score"]').get_text()
+        score = home_score + '-' + away_score
+        match_path = parse.urljoin(url, match_path)
+        if minute in ('AET', 'AP'):
+            score = fulltime_match_score(match_path)
+        elif minute != 'FT':
+            try:
+                minute = parse_min(minute)
+                if minute > 90:
+                    score = fulltime_match_score(match_path)
+            except ValueError:
+                pass
+        # add our data to our dictionary
+        scores[match_stage][mid] = Score(mid, score, teams, match_dt, stage=match_stage)
+
+       # ---------------------- OLD WAY ------------------------------ 
         match_name_element = element.find(attrs={"class": "scorelink"})
-        ls_id = int(element.get('data-eid'))
+        ls_id = int(element.get('data-e id'))
         match_dt = element.get('data-esd')
         if match_dt:
             match_dt = datetime.strptime(match_dt, '%Y%m%d%H%M%S')
@@ -199,7 +231,7 @@ def scrape_competition_from_livescore(config):
     """
     scrape an entire compatition from livescore
 
-    config - dict contaiing livescor4e config for a given tourney
+    config - dict contaiing livescore config for a given tourney
     """
     comp_url = parse.urljoin(config['url'], config['comp_key'])
     id_map = config['id_map']

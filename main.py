@@ -68,7 +68,7 @@ logger.info(f"build google services successfully")
 template_id = config['google_api']['template_id']
 folder_id = config['google_api']['folder_id']
 
-external_stylesheets=[dbc.themes.MINTY]
+external_stylesheets=[dbc.themes.DARKLY]
 app  = dash.Dash(__name__ , external_stylesheets=external_stylesheets)
 server = app.server
 app.title = config['tournament']

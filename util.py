@@ -86,7 +86,7 @@ def gen_entry(services, full_name, email, competition_id, db, template_id, folde
         raise KeyError(error_msg)
     
     # get competition name from db
-    competition = db.get('competition', 'name', competition_id)[0][0]
+    competition = db.get('competition', 'name', id=competition_id)
 
     # duplicating template sheet
     file_name = ' '.join([tournament, full_name, competition])
@@ -277,12 +277,17 @@ class DB:
         if exists:
             res = c.fetchall()
         c.close()
+        while isinstance(res, tuple) and len(res)==1:
+            res = res[0]
         return res
     
-    def get(self, table, what, id=None):
+    def get(self, table, what="*", **kwargs):
         query = f"SELECT {what} from {table}"
-        if id:
-            query += f" WHERE id={id}"
+        if kwargs: query += " WHERE"
+        for i,(k,v) in enumerate(kwargs.items()):
+            if i: query += " AND"
+            query += f" {k}={v}"
+        print(query)
         res = self.query(query)
         return res
     

@@ -41,19 +41,20 @@ Table prediction {
 
 Ref: participant.id < prediction.participant_id
 
-Table match {
+Table fixtures {
     id int [pk, increment]
     home_team varchar [not null]
     away_team varchar [not null]
     kickoff timestamp [not null]
-    livescore_id int
+    livescore_id int [not null]
+    stage varchar [not null]
 
     indexes {
-        livescore_id [name: 'livescore_id_index']
+        livescore_id [unique, name: 'livescore_id_index']
     }
 }
 
-Ref: match.id < prediction.match_id
+Ref: fixtures.id < prediction.match_id
 
 Table score {
     id int [pk, increment]
@@ -63,8 +64,8 @@ Table score {
     source varchar
 
     indexes {
-        match_id [name: 'match_id_index']
+        match_id [unique, name: 'match_id_index']
     }
 }
 
-Ref: match.id - score.match_id
+Ref: fixtures.id - score.match_id
