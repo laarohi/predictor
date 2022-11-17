@@ -26,7 +26,7 @@ Table competition {
 
 Ref: competition.id < participant.competition_id
 
-Table prediction {
+Table match_prediction {
     id int [pk, increment]
     home_score int [not null]
     away_score int [not null]
@@ -39,7 +39,17 @@ Table prediction {
     }
 }
 
-Ref: participant.id < prediction.participant_id
+Ref: participant.id < match_prediction.participant_id
+
+Table team_prediction {
+    id int [pk, increment]
+    team varchar [not null]
+    stage varchar [not null]
+    group_order int 
+    participant_id int [not null]
+}
+
+Ref: participant.id < team_prediction.participant_id
 
 Table fixtures {
     id int [pk, increment]
@@ -54,7 +64,7 @@ Table fixtures {
     }
 }
 
-Ref: fixtures.id < prediction.match_id
+Ref: fixtures.id < match_prediction.match_id
 
 Table score {
     id int [pk, increment]
