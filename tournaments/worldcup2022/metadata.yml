@@ -3,6 +3,21 @@ tournament: 'World Cup Predictor 2022'
 google_api:
   template_id: '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
   folder_id: '1wTnX3wApK8Mpe7LkptJSDPCIHhuOuxyR'
+  sheet_ranges:
+    phase I:
+        Group Stage: InternalUseOnly!A6:A53
+        Round of 16: Teams!M2:P9
+        Semi-Finals: InternalUseOnly!A55:A58
+        Final: InternalUseOnly!A60:A61
+        Winner: InternalUseOnly!A63
+        Bonus GS: InternalUseOnly!A65:67
+        Bonus KO: InternalUseOnly!A69:71
+    phase II:
+        Round of 16: InternalUseOnly!C3:F10
+        Quarter-Finals: InternalUseOnly!C12:F15
+        Semi-Finals: InternalUseOnly!C17:F18
+        Finals: InternalUseOnly!C20:F20
+
 
 #host user and passwd can be either environment variables or values
 sql:
@@ -33,8 +48,10 @@ scoring:
             qualified: 40
         Winner:
             qualified: 70
-        Bonus:
+        Bonus GS:
             qualified: 15
+        Bonus KO:
+            qualified: 20
     
     Phase II:
         Round of 16:
