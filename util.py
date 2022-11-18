@@ -159,12 +159,10 @@ def update_sheet(service, sheet_id, to_update, sheet=None, value_input_option='R
 
     return res
 
-def protect_sheet(service, sheet_id, ranges, sheet, warning=False):
+def protect_sheet(service, sheet_id, ranges, warning=False):
     requests = []
 
     for r in ranges:
-        if sheet:
-            r = sheet + '!' + r
         req = {
             "addProtectedRange": {
                 "ProtectedRange": {
@@ -177,7 +175,7 @@ def protect_sheet(service, sheet_id, ranges, sheet, warning=False):
 
     body = {'requests': requests}
 
-    res = service.spreadsheets().values.batchUpdate(
+    res = service.spreadsheets().values().batchUpdate(
         spreadsheetId=sheet_id, body=body).execute()
 
     return res
@@ -409,7 +407,9 @@ if 1 and __name__ == '__main__':
     #fid = '1wTnX3wApK8Mpe7LkptJSDPCIHhuOuxyR'
     #gen_entry(creds, 'Vinay','Aarohi','vinay.aarohi@atlas.com.mt',1, db, tid, fid, 'World Cup 2022 Predictor')
     sheet_id = '1P9QBDWj5dpBhQaygnyl_qgoZjrvyBfW2dDPkaXPNUrM'
-    ranges = config['google_api']['sheet_ranges']['phase I']
-    res = get_sheet_data(services['sheets'], sheet_id, ranges)
-    print(res)
+    #ranges = config['google_api']['sheet_ranges']['phase I']
+    protect_sheet(services['sheets'], sheet_id, ['K19:L80'], warning=False)
+
+    #res = get_sheet_data(services['sheets'], sheet_id, ranges)
+    #print(res)
 
