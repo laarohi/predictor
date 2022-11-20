@@ -480,8 +480,8 @@ class Tournament():
             scores = {}
             for name, (phase1, phase2) in self.brackets[cid].items():
                 name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
-                scores[name] = phase1.get_upcoming_scores(self.actual, lookback=-1, lookahead=2)
-                scores[name].update(phase2.get_upcoming_scores(self.actual), lookback=-1, lookahead=2)
+                scores[name] = phase1.get_upcoming_scores(self.actual)
+                scores[name].update(phase2.get_upcoming_scores(self.actual))
             scores = pd.DataFrame.from_dict(scores).T.sort_index()
             res[comp] = scores
         
