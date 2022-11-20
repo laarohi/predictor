@@ -306,7 +306,7 @@ class Stage():
             
         return points
     
-    def get_upcoming_scores(self, other, lookback=-2, lookahead=3):
+    def get_upcoming_scores(self, other):
         matches = {}
         if self.matches:
             missing_matches = set(self.matches.keys()) - set(other.matches.keys())
@@ -314,7 +314,7 @@ class Stage():
             #    print(f'Warning missing matches! {missing_matches}')
             for mid, match in self.matches.items():
                 other_match = other.matches.get(mid)
-                if other_match and (lookback <= (other_match.dt.date() - datetime.now().date()).days <= lookahead):
+                if other_match and (-1 <= (other_match.dt.date() - datetime.now().date()).days <= 2):
                     matches[other_match.matchup] = match.__str__()
         return matches
         

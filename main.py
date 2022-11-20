@@ -35,11 +35,11 @@ logging.info(f"loaded config: {config}")
 print(f"loaded config: {config}")
 
 
-color_code = {'Group Stage': 'primary',
-              'Round of 16': 'secondary',
-              'Quarter-finals': 'info',
-              'Semi-finals': 'danger',
-              'Finals': 'warning',
+color_code = {'Group Stage': 'info',
+              'Round of 16': 'danger',
+              'Quarter-finals': 'warning',
+              'Semi-finals': 'secondary',
+              'Finals': 'primary',
               'Done': 'success'
             }
 
