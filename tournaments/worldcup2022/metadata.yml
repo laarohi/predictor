@@ -1,10 +1,14 @@
 tournament: 'World Cup Predictor 2022'
 
+livescore:
+    url: 'https://www.livescores.com/football/world-cup/?tz=1'
+
 google_api:
   template_id: '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
   folder_id: '1wTnX3wApK8Mpe7LkptJSDPCIHhuOuxyR'
-  sheet_ranges:
-    phase I:
+
+sheet_ranges:
+    Phase 1:
         Group Stage: InternalUseOnly!A6:A53
         Round of 16: Teams!M2:P9
         Semi-Finals: InternalUseOnly!A55:A58
@@ -12,7 +16,7 @@ google_api:
         Winner: InternalUseOnly!A63
         Bonus GS: InternalUseOnly!A65:67
         Bonus KO: InternalUseOnly!A69:71
-    phase II:
+    Phase 2:
         Round of 16: InternalUseOnly!C3:F10
         Quarter-Finals: InternalUseOnly!C12:F15
         Semi-Finals: InternalUseOnly!C17:F18
@@ -35,7 +39,7 @@ competitions:
         entry_fee: 10
 
 scoring:
-    Phase I:
+    Phase 1:
         Group Stage:
             outcome: 5
             result: 15
@@ -53,7 +57,7 @@ scoring:
         Bonus KO:
             qualified: 20
     
-    Phase II:
+    Phase 2:
         Round of 16:
             qualified: 0
             result: 10

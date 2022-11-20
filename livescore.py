@@ -35,7 +35,7 @@ def fetch_beautiful_markup(url):
     return parsed_markup
 
 
-def extract_scores(url, gen=False):
+def extract_scores(url):
 
     parsed_markup = fetch_beautiful_markup(url)
     # dictionary to contain score
@@ -57,10 +57,8 @@ def extract_scores(url, gen=False):
 
         minute = element.select_one('[data-testid^="match_row_time-status_or_time"]').get_text()
         home_score = element.select_one('[data-testid^="football_match_row-home_score"]').get_text()
-        if gen: home_score = random.randint(0,4)
         if home_score == '?': home_score = None
         away_score = element.select_one('[data-testid^="football_match_row-away_score"]').get_text()
-        if gen: away_score = random.randint(0,4)
         if away_score == '?': away_score = None
         match_path = parse.urljoin(url, match_path)
         if minute in ('AET', 'AP'):
@@ -104,7 +102,7 @@ def fulltime_match_score(match_url):
         return None, None
 
 
-def scrape_competition_from_livescore(comp_url, gen=False):
+def scrape_competition_from_livescore(comp_url):
     """
     scrape an entire compatition from livescore
 
@@ -118,7 +116,7 @@ def scrape_competition_from_livescore(comp_url, gen=False):
     for g_name, g_url in comp_stages.items():
         g_path = parse.urljoin(comp_url, g_url)
         g_path = parse.urljoin(g_path, '?tz=1&page=1')
-        g_what = extract_scores(g_path, gen=gen)
+        g_what = extract_scores(g_path)
         for stage, stage_scores in g_what.items():
             if stage not in comp_scores:
                 comp_scores[stage] = stage_scores
@@ -153,7 +151,7 @@ def update_from_livescore(url, db, scores=True, fixtures=False):
     for score table we always want to replace the current row in its entirety
     """
 
-    comp_results = scrape_competition_from_livescore(url, gen=True)
+    comp_results = scrape_competition_from_livescore(url)
     score_query = """REPLACE INTO score (home_score , away_score , match_id , source ) 
             VALUES (%s,%s,%s,%s)"""
     fixture_query = """UPDATE fixtures 
@@ -181,10 +179,14 @@ codes = [l.replace('\t', '').replace('-----','---') for l in codes if '\t' in l]
 fifa_codes = {l[:-6]:l[-6:-3] for l in codes}
 fifa_codes['North Macedonia'] = fifa_codes.pop('Macedonia FYR')
 fifa_codes['Netherlands'] = fifa_codes.pop('Holland')
+fifa_codes['Usa'] = fifa_codes.pop('United States of America')
+fifa_codes['South Korea'] = fifa_codes.pop('Korea Republic')
+fifa_codes['Australia'] = 'AUS'
 # two way mapping
 fifa_codes.update({v:k for k,v in fifa_codes.items()})
 
 if __name__ == "__main__":
     url = "https://www.livescores.com/football/world-cup/?tz=1"
-    res = scrape_competition_from_livescore(url)
-    print(res)
+    from util import DB, config
+    db = DB(config['sql'])
+    #res = scrape_competition_from_livescore(url)

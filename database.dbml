@@ -31,11 +31,14 @@ Table match_prediction {
     home_score int [not null]
     away_score int [not null]
     match_id int [not null]
+    match_result int 
+    phase int [not null]
     participant_id int [not null]
 
     indexes {
         match_id [name: 'match_id_index']
         participant_id [name: 'participant_id_index']
+        (match_id, participant_id) [unique]
     }
 }
 
@@ -46,6 +49,7 @@ Table team_prediction {
     team varchar [not null]
     stage varchar [not null]
     group_order int 
+    phase int [not null]
     participant_id int [not null]
 }
 

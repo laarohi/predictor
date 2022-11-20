@@ -1,6 +1,6 @@
 -- SQL dump generated using DBML (dbml-lang.org)
 -- Database: MySQL
--- Generated at: 2022-11-16T20:44:34.989Z
+-- Generated at: 2022-11-20T13:58:17.318Z
 
 CREATE TABLE `participant` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
@@ -24,6 +24,8 @@ CREATE TABLE `match_prediction` (
   `home_score` int NOT NULL,
   `away_score` int NOT NULL,
   `match_id` int NOT NULL,
+  `match_result` int,
+  `phase` int NOT NULL,
   `participant_id` int NOT NULL
 );
 
@@ -31,7 +33,8 @@ CREATE TABLE `team_prediction` (
   `id` int PRIMARY KEY AUTO_INCREMENT,
   `team` varchar(255) NOT NULL,
   `stage` varchar(255) NOT NULL,
-  `order` int,
+  `group_order` int,
+  `phase` int NOT NULL,
   `participant_id` int NOT NULL
 );
 
@@ -57,6 +60,8 @@ CREATE UNIQUE INDEX `participant_index_0` ON `participant` (`email`, `competitio
 CREATE INDEX `match_id_index` ON `match_prediction` (`match_id`);
 
 CREATE INDEX `participant_id_index` ON `match_prediction` (`participant_id`);
+
+CREATE UNIQUE INDEX `match_prediction_index_3` ON `match_prediction` (`match_id`, `participant_id`);
 
 CREATE UNIQUE INDEX `livescore_id_index` ON `fixtures` (`livescore_id`);
 
