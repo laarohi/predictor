@@ -338,6 +338,7 @@ class Bracket():
         
         maybe specify name and dir or something along those lines
         '''
+        name = name.title()
         self.name = name
         self.dat = {}
         self.phase = phase
