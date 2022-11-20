@@ -10,7 +10,7 @@ from dash import dcc, ctx, html
 import dash_bootstrap_components as dbc
 from pandas import DataFrame
 from dash.dependencies import Input, Output, State
-#from predictor import Tournament
+from predictor import Tournament
 from util import DB, config, gen_entry, build_services, get_creds
 
 logger = logging.getLogger()
@@ -22,21 +22,11 @@ mlt = gettz('Europe/Malta')
 #------------------------------ HELPER FUNCTIONS ------------------------------- #
 
 col_ordering = ['Ranking','Name', 'Group Stage', 'Round of 16', 'Quarter-Finals', 'Semi-Finals', 
-                'Final', 'Winner', 'Bonus', 'Total']
+                'Final', 'Winner', 'Bonus GS', 'Bonus KO', 'Total']
 
 def to_local(dt):
     dt = dt.astimezone(utc)
     return dt.astimezone(mlt)
-
-def prep_standings(df):
-    df['Total'] = df.sum(axis=1)
-    df = df.sort_index().sort_values('Total', ascending=False)
-    df['Ranking'] = df.Total.rank(method='min', ascending=False)
-    df = df.reset_index()
-    cols = [col for col in col_ordering if col in df.columns]
-    df = df[cols]
-    tbl = dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
-    return tbl
 
 #------------------------------ LOAD DATA ------------------------------- #
 
@@ -44,8 +34,6 @@ def prep_standings(df):
 logging.info(f"loaded config: {config}")
 print(f"loaded config: {config}")
 
-
-#tournament = Tournament('./', 'https://www.livescores.com/soccer/euro-2020/')
 
 color_code = {'Group Stage': 'primary',
               'Round of 16': 'secondary',
@@ -68,11 +56,30 @@ logger.info(f"build google services successfully")
 template_id = config['google_api']['template_id']
 folder_id = config['google_api']['folder_id']
 
+t_name = config['tournament']
+tournament = Tournament(t_name, db, config)
+
 external_stylesheets=[dbc.themes.MINTY]
+DARK = False
+if DARK:
+    BASE = 'light'
+else:
+    BASE = 'dark'
 app  = dash.Dash(__name__ , external_stylesheets=external_stylesheets)
 server = app.server
-app.title = config['tournament']
+app.title = t_name
 app.config.suppress_callback_exceptions = True
+
+def prep_standings(df):
+    df['Total'] = df.sum(axis=1)
+    df = df.sort_index().sort_values('Total', ascending=False)
+    df['Ranking'] = df.Total.rank(method='min', ascending=False)
+    df = df.reset_index()
+    cols = [col for col in col_ordering if col in df.columns]
+    df = df[cols]
+    tbl = dbc.Table.from_dataframe(df, dark=DARK, striped=True, bordered=True, hover=True)
+    return tbl
+
 
 def get_score_cards(matches, tdy=None):
     cards = []
@@ -85,9 +92,10 @@ def get_score_cards(matches, tdy=None):
     cdt = match_list[0].dt.date()
     for match in match_list: 
         if match.stage:
-            col = color_code.get(match.stage, 'light')
+            print(match.stage)
+            col = color_code.get(match.stage, BASE)
         else:
-            col = 'light'
+            col = BASE
         if match.outcome is not None:
             col = color_code['Done']
         if match.dt.date() > cdt:
@@ -448,42 +456,43 @@ app.layout = dbc.Container(
                     "padding-bottom": "2%",
                     },
                 ),
-        #html.H2('Today\'s Matches',
-        #        style={
-        #            "width": "100%",
-        #            "text-align": "center",
-        #            "padding-top": "2%",
-        #            "padding-bottom": "2%",
-        #            },
-        #        ),
-       #html.Div(id = 'today-score-cards'),
+        html.H2('Today\'s Matches',
+                style={
+                    "width": "100%",
+                    "text-align": "center",
+                    "padding-top": "2%",
+                    "padding-bottom": "2%",
+                    },
+                ),
+       html.Div(id = 'today-score-cards'),
        dbc.Tabs(
             [
                 dbc.Tab(rules_tab_content, label="Rules and Point System"),
-                dbc.Tab(signup_tab_content, label="Sign Up"),
-                #dbc.Tab(standings_tab_content, label="Standings"),
-                #dbc.Tab(score_pred_tab_content, label="Upcoming Predicted Scores"),
-                #dbc.Tab(team_pred_tab_content, label="Predicted Teams"),
-                #dbc.Tab(result_tab_content, label="Results and Fixtures"),
+                #dbc.Tab(signup_tab_content, label="Sign Up"),
+                dbc.Tab(standings_tab_content, label="Standings"),
+                dbc.Tab(score_pred_tab_content, label="Upcoming Predicted Scores"),
+                dbc.Tab(team_pred_tab_content, label="Predicted Teams"),
+                dbc.Tab(result_tab_content, label="Results and Fixtures"),
                 # add a tab with the rules and points system
             ]
                 ),
-        #dcc.Interval(
-        #    id='scoring-interval-component',
-        #    interval=1*60*1*1000, # in milliseconds
-        #    n_intervals=0
-        #),
-        #dcc.Interval(
-        #    id='pred-interval-component',
-        #    interval=24*60*60*1*1000, # in milliseconds
-        #    n_intervals=0
-        #),
+        dcc.Interval(
+            id='scoring-interval-component',
+            interval=1*60*1*1000, # in milliseconds
+            n_intervals=0
+        ),
+        dcc.Interval(
+            id='pred-interval-component',
+            interval=24*60*60*1*1000, # in milliseconds
+            n_intervals=0
+        ),
 
     ]),
     fluid=True,
     )
 
 # --- Callbacks --- #
+'''
 @app.callback(
     Output("submit-success-alert", "is_open"),
     Output("submit-fail-alert", "is_open"),
@@ -532,6 +541,7 @@ def check_validity(email):
     return False, False
 
 '''
+
 # Multiple components can update everytime interval gets fired.
 @app.callback(
               [
@@ -542,26 +552,34 @@ def check_validity(email):
               Input('scoring-interval-component', 'n_intervals'))
 def update_scoring_live(n):
     tournament.reload()
-    df = tournament.standings
-    df.index.name = 'Name'
-    df = df.loc[:, (df.sum() > 0)]
-    p_tabs = []
-    # Compute overall standings
-    o_df = df.groupby(level=1, axis=1).sum()
-    o_tbl = prep_standings(o_df)
-    tab = dbc.Tab(dbc.Card(dbc.CardBody([o_tbl]),className="mt-3"),
-                            label='Overall')
-    p_tabs.append(tab)
-    for phase in df.columns.get_level_values(0).unique():
-        p_tbl = prep_standings(df[phase].copy())
-        tab = dbc.Tab(dbc.Card(dbc.CardBody([p_tbl]),className="mt-3"),
-                                label=phase)
+    dfs = tournament.standings
+    comp_tabs = []
+    for comp, df in dfs.items():
+        df.index.name = 'Name'
+        df = df.loc[:, (df.sum() > 0)]
+        p_tabs = []
+        # Compute overall standings
+        o_df = df.groupby(level=1, axis=1).sum()
+        o_tbl = prep_standings(o_df)
+        tab = dbc.Tab(dbc.Card(dbc.CardBody([o_tbl]),className="mt-3"),
+                                label='Overall')
         p_tabs.append(tab)
+        for phase in df.columns.get_level_values(0).unique():
+            p_tbl = prep_standings(df[phase].copy())
+            tab = dbc.Tab(dbc.Card(dbc.CardBody([p_tbl]),className="mt-3"),
+                                    label=f'Phase {phase}')
+            p_tabs.append(tab)
+        
+        phase_tabs = dbc.Tabs(p_tabs)
 
+        c_tab = dbc.Tab(dbc.Card(dbc.CardBody([phase_tabs]),className="mt-3"),
+                            label=comp)
+        comp_tabs.append(c_tab)
+    
     score_cards = get_score_cards(tournament.actual.matches)
     live_score_cards = get_score_cards(tournament.actual.matches, tdy=True)
 
-    return (dbc.Tabs(p_tabs), 
+    return (dbc.Tabs(comp_tabs), 
             score_cards,
             live_score_cards,
            )
@@ -572,40 +590,51 @@ def update_scoring_live(n):
               Output('pred-table', 'children'),
               Input('pred-interval-component', 'n_intervals'))
 def update_pred_scores_live(n):
-    df = tournament.predicted_scores
-    df.index.name = 'Name'
-    df = df.reset_index()
-    return dbc.Table.from_dataframe(df, dark=True, striped=True, bordered=True, hover=True)
+    comp_tabs = []
+    dfs = tournament.predicted_scores
+    for comp, df in dfs.items():
+        df.index.name = 'Name'
+        df = df.reset_index()
+        tbl = dbc.Table.from_dataframe(df, dark=DARK, striped=True, bordered=True, hover=True)
+        tab = dbc.Tab(dbc.Card(dbc.CardBody([tbl]),className="mt-3"), label=comp)
+        comp_tabs.append(tab)
+    
+    return dbc.Tabs(comp_tabs)
 
 @app.callback(
               Output('pred-team-table', 'children'),
               Input('pred-interval-component', 'n_intervals'))
 def update_pred_teams_live(n):
-    df = tournament.predicted_teams
-    p_tabs = []
-    for phase in df.columns.get_level_values(0).unique():
-        pdf = df[phase]
-        s_tabs = []
-        for stage in pdf.columns:
-            if stage == 'Round of 16': continue
-            stage_s = pdf[stage]
-            cols = [stage + ' ' + str(i) for i in range(1, len(stage_s[0])+1)]
-            sdf = DataFrame.from_dict(dict(zip(df.index, stage_s.values)), orient='index', columns=cols)
-            sdf.index.name = 'Name'
-            sdf = sdf.reset_index()
-            s_table = dbc.Table.from_dataframe(sdf,
-                        dark=True, striped=True, bordered=True, hover=True)
-            tab = dbc.Tab(dbc.Card(dbc.CardBody([s_table]),className="mt-3"),
-                            label=stage)
-            s_tabs.append(tab)
+    comp_tabs = []
+    dfs = tournament.predicted_teams
+    for comp, df in dfs.items():
+        p_tabs = []
+        for phase in df.columns.get_level_values(0).unique():
+            pdf = df[phase]
+            s_tabs = []
+            for stage in pdf.columns:
+                if stage in ('Group Stage', 'Round of 16'): continue
+                stage_s = pdf[stage]
+                cols = [stage + ' ' + str(i) for i in range(1, len(stage_s[0])+1)]
+                sdf = DataFrame.from_dict(dict(zip(df.index, stage_s.values)), orient='index', columns=cols)
+                sdf.index.name = 'Name'
+                sdf = sdf.reset_index()
+                s_table = dbc.Table.from_dataframe(sdf,
+                            dark=DARK, striped=True, bordered=True, hover=True)
+                tab = dbc.Tab(dbc.Card(dbc.CardBody([s_table]),className="mt-3"),
+                                label=stage)
+                s_tabs.append(tab)
 
-        stage_tabs = dbc.Tabs(s_tabs)
-        tab = dbc.Tab(dbc.Card(dbc.CardBody([stage_tabs]),className="mt-3"),
-                            label=phase)
-        p_tabs.append(tab)
-    phase_tabs = dbc.Tabs(p_tabs)
-    return phase_tabs 
-'''
+            stage_tabs = dbc.Tabs(s_tabs)
+            tab = dbc.Tab(dbc.Card(dbc.CardBody([stage_tabs]),className="mt-3"),
+                                label=f'Phase {phase}')
+            p_tabs.append(tab)
+        phase_tabs = dbc.Tabs(p_tabs)
+        c_tab = dbc.Tab(dbc.Card(dbc.CardBody([phase_tabs]),className="mt-3"),
+                            label=comp)
+        comp_tabs.append(c_tab)
+
+    return dbc.Tabs(comp_tabs)
 
 
 if __name__ == '__main__':

@@ -29,6 +29,8 @@ def get_predictions_db(db, pid, stage, phase):
     match_preds = db.query(match_query, (pid, stage, phase) )
     matches = {}
     if match_preds:
+        if not isinstance(match_preds[0], tuple):
+            match_preds = (match_preds,)
         for mid, home_score, away_score, home_team, away_team, kickoff in match_preds:
             score = (home_score, away_score)
             m_teams = (home_team, away_team)
@@ -49,19 +51,30 @@ def get_predictions_db(db, pid, stage, phase):
 
 def get_results_db(db):
     results_query = '''
-        SELECT s.match_id, s.home_score, s.away_score, f.home_team, f.away_team, f.kickoff
-        FROM score as s
-        LEFT JOIN fixtures as f
+        SELECT f.id, s.home_score, s.away_score, f.home_team, f.away_team, f.kickoff, f.stage
+        FROM fixtures as f
+        LEFT JOIN score as s
         ON s.match_id=f.id
     '''
     results = db.query(results_query)
-    scores = []
+    stage_scores = {}
     if results:
-        for mid, home_score, away_score, home_team, away_team, kickoff in results:
+        if not isinstance(results[0], tuple):
+            results = (results,)
+        for mid, home_score, away_score, home_team, away_team, kickoff, stage in results:
+            if stage and stage.startswith('Group'):
+                stage = 'Group Stage'
+            if stage not in stage_scores:
+                stage_scores[stage] = {}
             score = (home_score, away_score)
             m_teams = (home_team, away_team)
-            scores.append(Score(mid, score, m_teams, dt=kickoff))
-    return scores
+            stage_scores[stage][mid] = Score(mid, score, m_teams, dt=kickoff, stage=stage)
+    
+    stages = {}
+    for stage, scores in stage_scores.items():
+        stages[stage] = Stage(stage, scores)
+
+    return stages
 
 class Score():
     def __init__(self, mid, score, teams=None, dt=None, stage=None, live=False, use_code=False):
@@ -106,6 +119,8 @@ class Score():
 
                 
         if isinstance(score, (list, tuple)) and len(score)==2:
+            if (score[0] is None) or (score[1] is None):
+                return
             self.score = tuple(score)
             self.home = int(float(score[0]))
             self.away = int(float(score[1]))
@@ -184,7 +199,7 @@ class Stage():
         '''
         self.name = name
         self.matches = None
-        self.teams = None
+        self.teams = set()
         self.outcome = outcome or 0
         self.result = result or 0
         self.qualified = qualified or 0
@@ -291,7 +306,7 @@ class Stage():
             
         return points
     
-    def get_upcoming_scores(self, other):
+    def get_upcoming_scores(self, other, lookback=-2, lookahead=3):
         matches = {}
         if self.matches:
             missing_matches = set(self.matches.keys()) - set(other.matches.keys())
@@ -299,7 +314,7 @@ class Stage():
             #    print(f'Warning missing matches! {missing_matches}')
             for mid, match in self.matches.items():
                 other_match = other.matches.get(mid)
-                if other_match and (-2 <= (other_match.dt.date() - datetime.now().date()).days <= 4):
+                if other_match and (lookback <= (other_match.dt.date() - datetime.now().date()).days <= lookahead):
                     matches[other_match.matchup] = match.__str__()
         return matches
         
@@ -397,6 +412,11 @@ class ActualBracket(Bracket):
 
     def update(self):
         self.dat = get_results_db(self.db)
+        winner = list(self.dat['Final'].matches.values())[0].winner
+        if winner: winner = [winner]
+        self.dat['Winner'] = Stage('Winner', teams=winner)
+        self.dat['Bonus GS'] = Stage('Bonus GS')
+        self.dat['Bonus KO'] = Stage('Bonus KO')
 
             
 class Tournament():
@@ -460,8 +480,8 @@ class Tournament():
             scores = {}
             for name, (phase1, phase2) in self.brackets[cid].items():
                 name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
-                scores[name] = phase1.get_upcoming_scores(self.actual)
-                scores[name].update(phase2.get_upcoming_scores(self.actual))
+                scores[name] = phase1.get_upcoming_scores(self.actual, lookback=-1, lookahead=2)
+                scores[name].update(phase2.get_upcoming_scores(self.actual), lookback=-1, lookahead=2)
             scores = pd.DataFrame.from_dict(scores).T.sort_index()
             res[comp] = scores
         
