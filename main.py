@@ -92,7 +92,6 @@ def get_score_cards(matches, tdy=None):
     cdt = match_list[0].dt.date()
     for match in match_list: 
         if match.stage:
-            print(match.stage)
             col = color_code.get(match.stage, BASE)
         else:
             col = BASE
@@ -103,7 +102,7 @@ def get_score_cards(matches, tdy=None):
             row = []
             cdt = match.dt.date()
         if match.teams:
-            header = to_local(match.dt).strftime('%d/%m/%Y @ %H:%M')
+            header = match.dt.strftime('%d/%m/%Y @ %H:%M')
             title = match.__str__() #.replace(' ','\n').replace('-','vs')
             body = []
             if False: #match.live:
