@@ -86,7 +86,7 @@ def gen_entry(services, full_name, email, competition_id, db, template_id, folde
         raise KeyError(error_msg)
     
     # get competition name from db
-    competition = db.get('competition', 'name', competition_id)[0][0]
+    competition = db.get('competition', 'name', id=competition_id)
 
     # duplicating template sheet
     file_name = ' '.join([tournament, full_name, competition])
@@ -159,12 +159,10 @@ def update_sheet(service, sheet_id, to_update, sheet=None, value_input_option='R
 
     return res
 
-def protect_sheet(service, sheet_id, ranges, sheet, warning=False):
+def protect_sheet(service, sheet_id, ranges, warning=False):
     requests = []
 
     for r in ranges:
-        if sheet:
-            r = sheet + '!' + r
         req = {
             "addProtectedRange": {
                 "ProtectedRange": {
@@ -177,7 +175,7 @@ def protect_sheet(service, sheet_id, ranges, sheet, warning=False):
 
     body = {'requests': requests}
 
-    res = service.spreadsheets().values.batchUpdate(
+    res = service.spreadsheets().values().batchUpdate(
         spreadsheetId=sheet_id, body=body).execute()
 
     return res
@@ -209,6 +207,32 @@ def copy_protected_ranges(service, old_sheet, new_sheet, warning=False):
     
     return res
 
+def update_protected_ranges(service, sheet_id, protected_range, warning=False):
+    requests = []
+
+    old_spreadsheet_info = service.spreadsheets().get(
+        spreadsheetId=old_sheet).execute()
+
+    new_spreadsheet_info = service.spreadsheets().get(
+        spreadsheetId=new_sheet).execute()
+
+    for i in range(len(old_spreadsheet_info['sheets'])):
+        new_sheet_id = new_spreadsheet_info['sheets'][i]['properties']['sheetId']
+        old_sheet_protected_ranges = old_spreadsheet_info['sheets'][i]['protectedRanges']
+        for pr in old_sheet_protected_ranges:
+            r = {}
+            r['range'] = pr['range']
+            r['range']['sheetId'] = new_sheet_id
+            r['warningOnly'] = warning
+            r['editors'] = pr['editors']
+            requests.append(r)
+
+    body = {'requests': requests}
+
+    res = service.spreadsheets().values.batchUpdate(
+        spreadsheetId=new_sheet_id, body=body).execute()
+    
+    return res
 
 def send_email_invite(service, email, sheet_url, subject):
 
@@ -236,6 +260,44 @@ def send_email_invite(service, email, sheet_url, subject):
             print(F'An error occurred: {error}')
             send_message = None
         return send_message
+
+def get_sheet_data(service, sheet_id, ranges):
+    range_keys = list(ranges.keys())
+    range_values = list(ranges.values())
+    data = service.spreadsheets().values().batchGet(
+        spreadsheetId=sheet_id, ranges=range_values).execute()
+    data = data.get('valueRanges', [])
+
+    res = {}
+    for k, v in zip(range_keys, data):
+        res[k] = v['values']
+    return res
+
+def lock_sheet_phase_1(service, sheet_id):
+    body = {
+        "requests": [
+            {
+            "updateProtectedRange": {
+                "protectedRange": {
+                    'protectedRangeId': 1883711663,
+                        'unprotectedRanges': [
+                            {'sheetId': 517157059,
+                            'startRowIndex': 108,
+                            'endRowIndex': 123,
+                            'startColumnIndex': 10,
+                            'endColumnIndex': 12}
+                        ] 
+                    },
+                "fields": "unprotectedRanges"
+            }
+            }
+        ]
+    }
+    response = service.spreadsheets().batchUpdate(
+            spreadsheetId=sheet_id,
+            body=body).execute()
+    print(response)
+    return 
 
 
 
@@ -277,23 +339,208 @@ class DB:
         if exists:
             res = c.fetchall()
         c.close()
+        while isinstance(res, tuple) and len(res)==1:
+            res = res[0]
         return res
     
-    def get(self, table, what, id=None):
+    def get(self, table, what="*", order_by=None, asc=True, **kwargs):
         query = f"SELECT {what} from {table}"
-        if id:
-            query += f" WHERE id={id}"
+        if kwargs: query += " WHERE"
+        for i,(k,v) in enumerate(kwargs.items()):
+            if i: query += " AND"
+            query += f" {k}='{v}'"
+        if order_by:
+            query += f" ORDER BY {order_by}"
+            if asc:
+                query += " ASC"
+            else:
+                query += " DESC"
+        print(query)
         res = self.query(query)
         return res
     
+# ------------------------ GET SHEET DATA --------------------------------------
+
+def update_predictions_db(sheets, db, phase):
+
+    match_query = """REPLACE INTO match_prediction (home_score , away_score , match_id , match_result , phase, participant_id ) 
+            VALUES (%s,%s,%s,%s,%s,%s)"""
+    delete_team_query = """DELETE FROM team_prediction WHERE stage=%s AND phase=%s AND participant_id=%s"""
+    insert_team_query = """INSERT INTO team_prediction (team , stage , group_order , phase , participant_id ) 
+            VALUES (%s,%s,%s,%s,%s)"""
+    
+    participant_sheets = db.get('participant', 'id, sheet_id')
+    if not isinstance(participant_sheets[0], tuple):
+        participant_sheets = [participant_sheets]
+
+    if phase == 1:
+        template_id = config['google_api']['template_id']
+        gs_row_map = group_stage_row_map(sheets, template_id, db)
+        sheet_ranges = config['sheet_ranges']['Phase 1'] 
+
+        for pid, sheet_id in participant_sheets:
+            data = get_sheet_data(sheets, sheet_id, sheet_ranges)
+            gs = data.pop('Group Stage')
+            for i, score in enumerate(gs):
+                if isinstance(score, list): score = score[0]
+                match_id = gs_row_map[i]
+                home_score, away_score = list(map(lambda x: int(x.strip()), score.split('-')))
+                match_result = None
+                entry = (home_score, away_score, match_id, match_result, phase, pid)
+                db.query(match_query, entry)
+            
+            ro16 = data.pop('Round of 16')
+            db.query(delete_team_query, ('Round of 16', phase, pid))
+            for row in ro16:
+                team_a_order = int(row[0][0])
+                team_a = row[1]
+                entry = (team_a, 'Round of 16', team_a_order, phase, pid)
+                db.query(insert_team_query, entry)
+                team_b_order = int(row[2][0])
+                team_b = row[3]
+                entry = (team_b, 'Round of 16', team_b_order, phase, pid)
+                db.query(insert_team_query, entry)
+                
+            for stage, dat in data.items():
+                db.query(delete_team_query, (stage, phase, pid))
+                for team in dat:
+                    if isinstance(team, list): team = team[0]
+                    entry = (team, stage, None, phase, pid)
+                    db.query(insert_team_query, entry)
+    
+    if phase == 2:
+
+        # TODO Test this before actually using it 
+        sheet_ranges = config['sheet_ranges']['Phase 2'] 
+        for pid, sheet_id in participant_sheets:
+            data = get_sheet_data(sheets, sheet_id, sheet_ranges)
+            for stage, dat in data.items():
+                db.query(delete_team_query, (stage, pid))
+                match_ids = db.get("fixtures", "id", order_by="kickoff", stage="Round of 16")
+                for match_id, (home_team, home_score, away_team, away_score) in zip(match_ids, data):
+                    score = f'{home_score}-{away_score}'
+                    if '*' in score:
+                        o = score.find('*') - score.find('-')
+                        if o > 0:
+                            match_result = 2
+                        elif o < 0:
+                            match_result = 1
+                        home_score = home_score.replace('*', '')
+                        away_score = away_score.replace('*', '')
+                    else:
+                        match_result = None
+                    match_entry = (home_score, away_score, match_id, match_result, phase, pid)
+                    db.query(match_query, match_entry)
+                    home_team_entry = (home_team, stage, None, phase, pid)
+                    away_team_entry = (away_team, stage, None, phase, pid)
+                    db.query(insert_team_query, home_team_entry)
+                    db.query(insert_team_query, away_team_entry)
+
+
+def check_status_sheet(sheets, db, phase):
+    participant_sheets = db.get('participant', 'name, paid, competition_id, sheet_id')
+
+    ranges = {
+        'phase I': 'World Cup!P97',
+        'phase II': 'World Cup!Q122',
+    }
+
+    res = {}
+
+    for name, paid, cid, sheet_id in participant_sheets:
+        if not cid in res:
+            res[cid] = {'Complete':[], 'Missing Predictions':[], 'Pending Payment':[]}
+        checks = get_sheet_data(sheets, sheet_id, ranges)
+        if phase == 1:
+            check = checks['phase I'][0][0]
+        elif phase == 2:
+            check = checks['phase II'][0][0]
+        print(name, cid, check)
+        complete = (check == 'COMPLETE POOL:')
+        if not paid:
+            res[cid]['Pending Payment'].append(name)
+        if not complete:
+            res[cid]['Missing Predictions'].append(name)
+        if paid and complete:
+            res[cid]['Complete'].append(name)
+
+    return res
+
         
+
+def lock_prediction_sheet(sheets, db, phase):
+
+    sheet_ids = db.get('participant','sheet_id')
+
+    if phase == 1:
+        uprs = [
+                {'sheetId': 517157059,
+                'startRowIndex': 108,
+                'endRowIndex': 123,
+                'startColumnIndex': 10,
+                'endColumnIndex': 12}
+                ] 
+    elif phase == 2:
+        uprs = []
+
+
+    body = {
+        "requests": [
+            {
+            "updateProtectedRange": {
+                "protectedRange": {
+                    'protectedRangeId': 1883711663,
+                        'unprotectedRanges': uprs
+                    },
+                "fields": "unprotectedRanges"
+            }
+            }
+        ]
+    }
+
+    for sheet_id in sheet_ids:
+        if isinstance(sheet_id, tuple) and len(sheet_id) == 1:
+            sheet_id = sheet_id[0]
+        response = sheets.spreadsheets().batchUpdate(
+                spreadsheetId=sheet_id,
+                body=body).execute()
+        print(response)
+    
+
+def group_stage_row_map(sheets, sheet_id, db):
+    '''
+    this function is just a placeholder for now, to be used as part of larger script
+    
+    idea is to create a map from row to fixture.id table in sql for data entry
+    '''
+    rows = get_sheet_data(sheets, sheet_id, {'data':'World Cup!I19:N80'})
+    i = 0
+    res = {}
+    for row in rows['data']:
+        if len(row) == 0 or row[0] == 'Home':
+            continue
+        home_team = row[0]
+        away_team = row[5]
+        if home_team == 'Unites States': home_team = 'Usa'
+        if away_team == 'Unites States': away_team = 'Usa'
+        mid = db.get('fixtures','id', home_team=home_team, away_team=away_team)
+        res[i] = mid
+        i += 1
+    return res
     
 
 if 1 and __name__ == '__main__':
-    import MySQLdb
-    import os
+    #db = DB(config['sql'])
+    creds = get_creds('google_token.json','google_credentials.json')
+    services = build_services(creds)
+    #tid = '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
+    #fid = '1wTnX3wApK8Mpe7LkptJSDPCIHhuOuxyR'
+    #gen_entry(creds, 'Vinay','Aarohi','vinay.aarohi@atlas.com.mt',1, db, tid, fid, 'World Cup 2022 Predictor')
+    sheet_id = '1P9QBDWj5dpBhQaygnyl_qgoZjrvyBfW2dDPkaXPNUrM'
     db = DB(config['sql'])
-    creds = get_creds()
-    tid = '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
-    fid = '1wTnX3wApK8Mpe7LkptJSDPCIHhuOuxyR'
-    gen_entry(creds, 'Vinay','Aarohi','vinay.aarohi@atlas.com.mt',1, db, tid, fid, 'World Cup 2022 Predictor')
+    #ranges = config['google_api']['sheet_ranges']['phase I']
+    res = check_status_sheet(services['sheets'], db, phase=1)
+    #res = get_sheet_data(services['sheets'], sheet_id, ranges)
+    #print(res)
+
+

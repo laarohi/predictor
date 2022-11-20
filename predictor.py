@@ -1,263 +1,80 @@
 #!/usr/bin/env python
 
-# ### Euro 2020 Prediction Game
-# 
-# For the euro 2020 prediction game my idea is to do all the score keeping in python. Read the excel data into a python class. The class would contain some nicely organised data structure to store the predictions. 
-# 
-# 
-# Idea:
-# 
-# - class Bracket:
-#     - load from excel; phase I and phase II are two seperate sheets
-#     - group_stage dict {mid:score}
-#     - knockout_phase:
-#         - phase I:
-#             - l16: list of tuples ('Team', 'rank')
-#             - sf: list
-#             - f: list
-#             - bonus: list
-#         - phase II:
-#             - qf: list
-#             - sf: list
-#             - f: list
-# 
-# Checklist to get done:
-# DONE - make sure that score can be computed correctly from comparison of livescore bracket and player bracket
-# DONE - finalise classes
-# DONE - pretty print html format for scoring table
-# DONE - pretty print html format for player scores
-# DONE - figure out flask and how to host
-# DONE - make use of metadata.yml for scoring system points
-# - prepare phase II excel sheet
-# - fix round of 16 scoring in livescore scraper somehow need to know where each team finished in their group. Might be easier to just 
-# - fix astericks scoring for knockout phase in excel and python
-# - set then unordered tuple then ordered for teams
-# - make table sortable by column
-# 
-
-
-import requests
-import os
 import re
-import random
 import time
-from bs4 import BeautifulSoup
-from urllib import parse
 from collections import Counter
 from datetime import datetime
 
 import yaml
 import pandas as pd
 
-gen_score = lambda : f'{random.randint(0,3)} - {random.randint(0,3)}'
-parse_min = lambda x: int(x.strip().replace("'",""))
+from livescore import fifa_codes
 
+def get_predictions_db(db, pid, stage, phase):
+    match_query = '''
+        SELECT p.match_id, p.home_score, p.away_score, f.home_team, f.away_team, f.kickoff
+        FROM match_prediction as p
+        LEFT JOIN fixtures as f
+        ON p.match_id=f.id
+        WHERE p.participant_id=%s AND f.stage LIKE %s AND p.phase=%s
+    '''
+    team_query = '''
+        SELECT team, group_order
+        FROM team_prediction
+        WHERE participant_id=%s AND stage=%s AND phase=%s
+    '''
 
-def from_livescore(x):
-    if x.endswith('finals'):
-        x = x.title()
-    else:
-        x = x.replace('-',' ').title()
-    if x.startswith('Group'):
-        return 'Group Stage'
-    x = x.replace('Of','of')
-    return x
+    if stage == 'Group Stage': stage = 'Group%'
 
+    match_preds = db.query(match_query, (pid, stage, phase) )
+    matches = {}
+    if match_preds:
+        if not isinstance(match_preds[0], tuple):
+            match_preds = (match_preds,)
+        for mid, home_score, away_score, home_team, away_team, kickoff in match_preds:
+            score = (home_score, away_score)
+            m_teams = (home_team, away_team)
+            matches[mid] = Score(mid, score, m_teams, dt=kickoff, stage=stage)
 
-def fetch_beautiful_markup(url):
-    print('fetching markup from ' + url)
+    team_preds = db.query(team_query, (pid, stage, phase))
+    teams = []
+    if team_preds:
+        if not isinstance(team_preds[0], tuple):
+            team_preds = (team_preds,)
+        for team, group_order in team_preds:
+            if group_order:
+                teams.append((team, group_order))
+            else:
+                teams.append(team)
+
+    return matches, teams
+
+def get_results_db(db):
+    results_query = '''
+        SELECT f.id, s.home_score, s.away_score, f.home_team, f.away_team, f.kickoff, f.stage
+        FROM fixtures as f
+        LEFT JOIN score as s
+        ON s.match_id=f.id
+    '''
+    results = db.query(results_query)
+    stage_scores = {}
+    if results:
+        if not isinstance(results[0], tuple):
+            results = (results,)
+        for mid, home_score, away_score, home_team, away_team, kickoff, stage in results:
+            if stage and stage.startswith('Group'):
+                stage = 'Group Stage'
+            if stage not in stage_scores:
+                stage_scores[stage] = {}
+            score = (home_score, away_score)
+            m_teams = (home_team, away_team)
+            stage_scores[stage][mid] = Score(mid, score, m_teams, dt=kickoff, stage=stage)
     
-    # try catching all possible http errors
-    try :
-        livescore_html = requests.get(url)
-    except Exception as e :
-        return print('An error occured as: ', e)
-
-    parsed_markup = BeautifulSoup(livescore_html.text, 'html.parser')
-    
-    return parsed_markup
-
-
-def extract_scores(parsed_markup, url, id_map, order_map={}, stage=None):
-    # dictionary to contain score
-    scores = {}
-
-    # scrape needed data from the parsed markup
-    for element in parsed_markup.find_all("div", "row-gray") :
-        match_name_element = element.find(attrs={"class": "scorelink"})
-        ls_id = int(element.get('data-eid'))
-        match_dt = element.get('data-esd')
-        if match_dt:
-            match_dt = datetime.strptime(match_dt, '%Y%m%d%H%M%S')
-        order = order_map.get(ls_id, None)
-
-        if match_name_element is not None :
-            # this means the match is about to be played
-            match_path = match_name_element.get('href')
-            match_stage, matchup = match_path.split('/')[3:5]
-            match_stage = from_livescore(match_stage)
-            if match_stage not in scores: scores[match_stage] = {}
-            home_team = from_livescore(matchup.split('-vs-')[0].strip())
-            away_team = from_livescore(matchup.split('-vs-')[1].strip())
-            try:
-                mid = id_map[ls_id]
-            except KeyError:
-                try:
-                    mid = fifa_codes[home_team] + '.' + fifa_codes[away_team]
-                except KeyError:
-                    mid = ls_id
-
-
-            teams = (home_team, away_team)
-            if order:
-                teams = tuple(zip(teams, order))
-            score = element.find("div", "sco").get_text().strip()
-            minute = element.find("div", "min").get_text().strip()
-            match_path = parse.urljoin(url, match_path)
-            if minute in ('AET', 'AP'):
-                score = fulltime_match_score(match_path)
-            elif minute != 'FT':
-                try:
-                    minute = parse_min(minute)
-                    if minute > 90:
-                        score = fulltime_match_score(match_path)
-                except:
-                    pass
-            # add our data to our dictionary
-            scores[match_stage][mid] = Score(mid, score, teams, match_dt, stage=match_stage)
-
-        elif stage:
-            if stage not in scores: scores[stage] = {}
-            # we need to use a different method to get our data
-            home_team = '-'.join(element.find("div", "tright").get_text().strip().split(" "))
-            away_team = '-'.join(element.find(attrs={"class": "ply name"}).get_text().strip().split(" "))
-            try:
-                mid = id_map[ls_id]
-            except KeyError:
-                try:
-                    mid = fifa_codes[home_team] + '.' + fifa_codes[away_team]
-                except KeyError:
-                    mid = ls_id
-
-            score = element.find("div", "sco").get_text().strip()
-            minute = element.find("div", "min").get_text().strip()
-
-            teams = (home_team, away_team)
-            if order:
-                teams = tuple(zip(teams, order))
-
-            # add our data to our dictionary
-            scores[stage][mid] = Score(mid, score, teams, match_dt, stage=stage)
-
-    return scores
-
-def extract_competition_stages(markup, comp):
     stages = {}
-    selected_cat = markup.find('aside', 'left-bar').find('ul','buttons btn-light').find('a',{'class':'selected cat'})
-    stage_refs = selected_cat.parent.find_all('a', attrs={'href':re.compile(comp+'.*/')})
-    for g in stage_refs:
-        g_url = g.get('href')
-        g_name = g.get('title')
-        stages[g_name] = g_url
-    
+    for stage, scores in stage_scores.items():
+        stages[stage] = Stage(stage, scores)
+
     return stages
-    
-
-def fulltime_match_score(match_url):
-    """
-    if a match goes to extra-time we want to get only
-    the score after 90 minutes.
-    """
-    match = fetch_beautiful_markup(match_url)
-    score = '0 - 0'
-    for goal in match.find_all(attrs={'class':'inc goal'}, recursive=True):
-        event_elements = goal.parent.parent.parent
-        try:
-            minute = parse_min(event_elements.find('div','min').get_text().strip())
-            if minute <= 90:
-                score = event_elements.find('div', 'sco').get_text().strip()
-        except:
-            pass
-    return score
-
-
-def scrape_scores_from_livescore(config, stage) :
-    """
-    scores scores for a given stage from livescore
-    
-    config - dict containing livescore config for given tourney
-    """
-    comp_url = parse.urljoin(config['url'], config['comp_key'])
-    id_map = config['id_map']
-    order_map = config['order_map']
-    parsed_markup = fetch_beautiful_markup(comp_url)
-    scores = extract_scores(parsed_markup, comp_url, id_map, order_map, stage)
-    return scores
-
-
-def scrape_competition_from_livescore(config):
-    """
-    scrape an entire compatition from livescore
-
-    config - dict contaiing livescor4e config for a given tourney
-    """
-    comp_url = parse.urljoin(config['url'], config['comp_key'])
-    id_map = config['id_map']
-    order_map = config['order_map']
-    res = {}
-    comp = parse.urlparse(comp_url).path
-    comp_markup = fetch_beautiful_markup(comp_url)
-    comp_scores = extract_scores(comp_markup, comp_url, order_map, id_map)
-    comp_stages = extract_competition_stages(comp_markup, comp)
-    
-    for g_name, g_url in comp_stages.items():
-        g_path = parse.urljoin(comp_url, g_url)
-        for what in ['results/all/', 'fixtures/all/']:
-            what_path = parse.urljoin(g_path, what)
-            g_what = scrape_scores_from_livescore(what_path, g_name)
-            for stage, stage_scores in g_what.items():
-                if stage not in comp_scores:
-                    comp_scores[stage] = stage_scores
-                else:
-                    for mid, score in stage_scores.items():
-                        if mid not in comp_scores:
-                            comp_scores[stage][mid] = score
-    
-    for stage, stage_scores in comp_scores.items():
-        res[stage] = Stage(stage, stage_scores)
-        
-    return res
-
-
-def update_scrape_from_livescore(comp_scores, config):
-    """
-    update comp_scores from livescore
-
-    config - dict contaiing livescor4e config for a given tourney
-    """
-    comp_url = parse.urljoin(config['url'], config['comp_key'])
-    id_map = config['id_map']
-    order_map = config['order_map']
-    comp_markup = fetch_beautiful_markup(comp_url)
-    new_scores = extract_scores(comp_markup, comp_url, id_map, order_map)
-    for stage, stage_scores in new_scores.items():
-        if stage in comp_scores:
-            scores = comp_scores[stage].matches
-            scores.update(stage_scores)
-            comp_scores[stage] = Stage(stage, scores)
-    return comp_scores
-        
-    
-code_url = 'http://www.rsssf.com/miscellaneous/fifa-codes.html'
-codes = fetch_beautiful_markup(code_url)
-codes = codes.pre.get_text().splitlines()
-codes = [l.replace('\t', '').replace('-----','---') for l in codes if '\t' in l]
-fifa_codes = {l[:-6]:l[-6:-3] for l in codes}
-fifa_codes['North Macedonia'] = fifa_codes.pop('Macedonia FYR')
-fifa_codes['Netherlands'] = fifa_codes.pop('Holland')
-# two way mapping
-fifa_codes.update({v:k for k,v in fifa_codes.items()})
-
 
 class Score():
     def __init__(self, mid, score, teams=None, dt=None, stage=None, live=False, use_code=False):
@@ -302,6 +119,8 @@ class Score():
 
                 
         if isinstance(score, (list, tuple)) and len(score)==2:
+            if (score[0] is None) or (score[1] is None):
+                return
             self.score = tuple(score)
             self.home = int(float(score[0]))
             self.away = int(float(score[1]))
@@ -333,6 +152,10 @@ class Score():
                 return f'{teams[0]} ? - ? {teams[1]}'
             else:
                 return f'{self.mid}: ? - ?'
+    
+    def __repr__(self):
+        return self.__str__()
+    
     
     @property
     def matchup(self):
@@ -376,7 +199,7 @@ class Stage():
         '''
         self.name = name
         self.matches = None
-        self.teams = None
+        self.teams = set()
         self.outcome = outcome or 0
         self.result = result or 0
         self.qualified = qualified or 0
@@ -483,7 +306,7 @@ class Stage():
             
         return points
     
-    def get_upcoming_scores(self, other):
+    def get_upcoming_scores(self, other, lookback=-2, lookahead=3):
         matches = {}
         if self.matches:
             missing_matches = set(self.matches.keys()) - set(other.matches.keys())
@@ -491,7 +314,7 @@ class Stage():
             #    print(f'Warning missing matches! {missing_matches}')
             for mid, match in self.matches.items():
                 other_match = other.matches.get(mid)
-                if other_match and (-2 <= (other_match.dt.date() - datetime.now().date()).days <= 4):
+                if other_match and (lookback <= (other_match.dt.date() - datetime.now().date()).days <= lookahead):
                     matches[other_match.matchup] = match.__str__()
         return matches
         
@@ -509,7 +332,7 @@ class Stage():
             
 class Bracket():
     
-    def __init__(self, name, workdir, scoring=None, phase=1):
+    def __init__(self, name, pid, db, scoring=None, phase=1):
         '''
         load bracket from excel or pkl
         
@@ -517,51 +340,18 @@ class Bracket():
         '''
         self.name = name
         self.dat = {}
-        if phase == 1:
-            self.phase = 'Phase I'
-            self.scoring = scoring.get(self.phase, None)
-            pkl_file_1 = os.path.join(workdir,'phase_I', name + '.pkl')
-            xlsx_file_1 = os.path.join(workdir,'phase_I','CxFPoolsEuro2020_PhaseI_'+ name + '.xlsx')
-            if os.path.exists(pkl_file_1):
-                self.dat = pkl_load(pkl_file_1)
-            elif os.path.exists(xlsx_file_1):
-                dat = pd.read_excel(xlsx_file_1, sheet_name='INTERNAL_USE_ONLY').iloc[:,0].values
-                self.dat['Group Stage'] = Stage(name='Group Stage',matches={i+1:m for i,m in enumerate(dat[1:37])}, **self.scoring['Group Stage'])
-                self.dat['Round of 16'] = Stage(name='Round of 16', teams=list(zip(dat[38:54], [1,2]*6 + [3]*4)), **self.scoring['Round of 16'])
-                self.dat['Semi-Finals']= Stage(name='Semi-Final', teams=list(dat[55:59]), **self.scoring['Semi-Finals'])
-                self.dat['Final'] = Stage(name='Final', teams=list(dat[60:62]), **self.scoring['Final'])
-                self.dat['Winner'] = Stage(name='Winner', teams=list(dat[63:64]), **self.scoring['Winner'])
-                self.dat['Bonus'] = Stage(name='Bonus', teams=tuple(dat[65:68]), **self.scoring['Bonus'])
-            else:
-                print(f'No valid Phase 1 file found for {name}')
+        self.phase = phase
+        self.scoring = scoring.get(f'Phase {self.phase}', None)
+        self.db = db
+        self.pid = pid
+        for stage, scor in self.scoring.items():
+            matches, teams = get_predictions_db(db, self.pid, stage, phase)
+            self.dat[stage] = Stage(name=stage,matches=matches, teams=teams, **scor)
         
-        if phase == 2:
-            self.phase = 'Phase II'
-            self.scoring = scoring.get(self.phase, None)
-            pkl_file_2 = os.path.join(workdir,'phase_II', name + '.pkl')
-            xlsx_file_2 = os.path.join(workdir,'phase_II', 'CxFPoolsEuro2020_PhaseII_'+ name + '.xlsx')
-            if os.path.exists(pkl_file_2):
-                self.dat = pkl_load(pkl_file_2)
-            elif os.path.exists(xlsx_file_2):
-                dat = pd.read_excel(xlsx_file_2, sheet_name='INTERNAL_USE_ONLY').iloc[:,0:2]
-                self.dat['Round of 16'] = self.parse_stage('Round of 16', range(37,45),
-                        dat.iloc[0:8].values, dat.iloc[8:16].values, use_code=True)
-                self.dat['Quarter-Finals'] = self.parse_stage('Quarter-Finals', range(45,49),
-                        dat.iloc[17:21].values, dat.iloc[21:25].values, use_code=True)
-                self.dat['Semi-Finals'] = self.parse_stage('Semi-Finals', range(49,51),
-                        dat.iloc[26:28].values, dat.iloc[28:30].values, use_code=True)
-                self.dat['Final'] = self.parse_stage('Final', [51],
-                        dat.iloc[31:32].values, dat.iloc[32:33].values, use_code=True)
-                self.dat['Winner'] = Stage(name='Winner', teams=[dat.iloc[34,0]], **self.scoring['Winner'])
-            else:
-                print(f'No valid Phase 2 file found for {name}')
-        
-    
-    
     @classmethod
-    def load_dual_phase(cls, participant, workdir, scoring):
-        phase1 = cls(participant, workdir, scoring, phase=1)
-        phase2 = cls(participant, workdir, scoring, phase=2)
+    def load_dual_phase(cls, participant, pid, db, scoring):
+        phase1 = cls(participant, pid, db, scoring, phase=1)
+        phase2 = cls(participant, pid, db, scoring, phase=2)
         return phase1, phase2
         
     def parse_stage(self, stage_name, mids, home_dat, away_dat, use_code=False):
@@ -578,7 +368,7 @@ class Bracket():
         points = {}
         for key, stage in self.dat.items():
             pts = stage.compute(other.dat[key])
-            if key == 'Bonus':
+            if key == 'Bonus GS':
                 bonus = other.dat['Group Stage'].matches.values()
                 if sum([v.outcome is not None for v in bonus]) < len(bonus):
                     pts = 0
@@ -589,12 +379,9 @@ class Bracket():
     def get_upcoming_scores(self, other):
         matches = {}
         for stage, dat in self.dat.items():
-            #import pdb; pdb.set_trace()
             if dat.matches:
                 matches.update(dat.get_upcoming_scores(other.dat[stage]))
         return matches
-        #if 'Group Stage' in self.dat:
-        #    return self.dat['Group Stage'].get_upcoming_scores(other.dat['Group Stage'])
 
     @property
     def teams(self):
@@ -603,30 +390,6 @@ class Bracket():
             if stage.get_teams():
                 teams[(self.phase, key)] = stage.get_teams()
         return teams
-    
-class ActualBracket(Bracket):
-
-    def __init__(self, comp_url):
-        self.name = 'actual'
-        self.phase = 0
-        self.dat = scrape_competition_from_livescore(comp_url)
-        self.comp_url = comp_url
-        self.dat['Winner'] = Stage(name='Winner', teams = ['Italy'])
-        bonus_1 = fifa_codes.get(self.dat['Group Stage'].highest_scoring_team)
-        bonus_2 = 'Player'
-        bonus_3 = 'Player'
-        #load bonus 2 and 3 from metadata.yml
-        self.dat['Bonus'] = Stage(name='Bonus', teams=(bonus_1, bonus_2, bonus_3))
-
-    def update(self):
-        self.dat = update_scrape_from_livescore(self.dat, self.comp_url)
-        self.dat['Winner'] = Stage(name='Winner', teams = ['Italy'])
-
-        bonus_1 = self.dat['Group Stage'].highest_scoring_team
-        bonus_2 = 'Player'
-        bonus_3 = 'Player'
-        #load bonus 2 and 3 from metadata.yml
-        self.dat['Bonus'] = Stage(name='Bonus', teams=(bonus_1, bonus_2, bonus_3))
 
     @property
     def matches(self):
@@ -636,20 +399,46 @@ class ActualBracket(Bracket):
                 matches.update(stage.matches)
 
         return matches
+    
+
+class ActualBracket(Bracket):
+
+    def __init__(self, db):
+        self.name = 'actual'
+        self.phase = 0
+        self.db = db
+        self.stages = ['Group Stage','Round of 16','Quarter-Finals','Semi-Finals','Finals','Winner','Bonus GS','Bonus KO']
+        self.update()
+
+    def update(self):
+        self.dat = get_results_db(self.db)
+        winner = list(self.dat['Final'].matches.values())[0].winner
+        if winner: winner = [winner]
+        self.dat['Winner'] = Stage('Winner', teams=winner)
+        self.dat['Bonus GS'] = Stage('Bonus GS')
+        self.dat['Bonus KO'] = Stage('Bonus KO')
 
             
 class Tournament():
 
-    def __init__(self, workdir, comp_url, update=60, load=3600*24):
-        with open(os.path.join(workdir,'metadata.yml')) as f:
-            config = yaml.safe_load(f)
-        self.participants = [p.replace(' ','') for p in config['participants']]
-        self.scoring = config['scoring']
-        self.workdir = workdir
+    def __init__(self, name, db, config, update=60, load=3600*24):
+        self.name = name
+        self.db = db
+        self.participants = {}
         self.brackets = {}
-        for participant in self.participants:
-            self.brackets[participant] = Bracket.load_dual_phase(participant, self.workdir, scoring=self.scoring)
-        self.comp_url = comp_url
+        self.scoring = config['scoring']
+
+        competitions = self.db.get('competition', 'id, description')
+        self.competitions = {cid:comp for cid, comp in competitions}
+        for cid, comp in self.competitions.items():
+            participants = self.db.get('participant','id, name', competition_id=cid)
+            self.participants[cid] = {p_name: pid for pid, p_name in participants}
+
+            self.brackets[cid] = {}
+            for participant, pid in self.participants[cid].items():
+                self.brackets[cid][participant] = Bracket.load_dual_phase(participant, pid, db, scoring=self.scoring)
+                print('loaded bracket for:', comp, participant)
+
         self.load_time = 0
         self.load_interval = load 
         self.update_time = time.time()
@@ -660,54 +449,57 @@ class Tournament():
     def reload(self):
         current_time = time.time()
         if current_time - self.load_time > self.load_interval:
-            self.actual = ActualBracket(self.comp_url)
+            self.actual = ActualBracket(self.db)
             self.teams = self.actual.dat['Group Stage'].teams
             self.load_time = current_time
         elif current_time - self.update_time > self.update_interval:
             self.actual.update()
             self.update_time = current_time
         
+
     @property
     def standings(self):
-        points = {}
-        for name, (phase1, phase2) in self.brackets.items():
-            name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
-            points[name] = {}
-            points[name].update(phase1.compute(self.actual))
-            points[name].update(phase2.compute(self.actual))
+        res = {}
+        for cid, comp in self.competitions.items():
+            points = {}
+            for name, (phase1, phase2) in self.brackets[cid].items():
+                name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
+                points[name] = {}
+                points[name].update(phase1.compute(self.actual))
+                points[name].update(phase2.compute(self.actual))
 
-        points = pd.DataFrame.from_dict(points, orient='index')
-        #points = points.groupby(level=1, axis=1).sum()
-        #cols = [col for col in col_ordering if col in points.columns]
-        #points = points[col]
-        #points['Total'] = points.sum(axis=1)
-        #points = points.sort_index().sort_values('Total', ascending=False)
-        return points
+            points = pd.DataFrame.from_dict(points, orient='index')
+            res[comp] = points
+        
+        return res
     
     @property
     def predicted_scores(self):
-        scores = {}
-        for name, (phase1, phase2) in self.brackets.items():
-            name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
-            scores[name] = phase1.get_upcoming_scores(self.actual)
-            scores[name].update(phase2.get_upcoming_scores(self.actual))
-        scores = pd.DataFrame.from_dict(scores).T.sort_index()
-        return scores
+        res = {}
+        for cid, comp in self.competitions.items():
+            scores = {}
+            for name, (phase1, phase2) in self.brackets[cid].items():
+                name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
+                scores[name] = phase1.get_upcoming_scores(self.actual, lookback=-1, lookahead=2)
+                scores[name].update(phase2.get_upcoming_scores(self.actual), lookback=-1, lookahead=2)
+            scores = pd.DataFrame.from_dict(scores).T.sort_index()
+            res[comp] = scores
+        
+        return res
 
     @property
     def predicted_teams(self):
-        teams = {}
-        for name, (phase1, phase2) in self.brackets.items():
-            name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
-            teams[name] = {}
-            if phase1.teams:
-                teams[name].update(phase1.teams)
-            if phase2.teams:
-                teams[name].update(phase2.teams)
-        teams = pd.DataFrame.from_dict(teams, orient='index').sort_index()
-        return teams
+        res = {}
+        for cid, comp in self.competitions.items():
+            teams = {}
+            for name, (phase1, phase2) in self.brackets[cid].items():
+                name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
+                teams[name] = {}
+                if phase1.teams:
+                    teams[name].update(phase1.teams)
+                if phase2.teams:
+                    teams[name].update(phase2.teams)
+            teams = pd.DataFrame.from_dict(teams, orient='index').sort_index()
+            res[comp] = teams
 
-            
-        
-
-
+        return res
