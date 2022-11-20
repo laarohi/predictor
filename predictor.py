@@ -338,7 +338,6 @@ class Bracket():
         
         maybe specify name and dir or something along those lines
         '''
-        name = name.title()
         self.name = name
         self.dat = {}
         self.phase = phase
@@ -433,7 +432,7 @@ class Tournament():
         self.competitions = {cid:comp for cid, comp in competitions}
         for cid, comp in self.competitions.items():
             participants = self.db.get('participant','id, name', competition_id=cid)
-            self.participants[cid] = {p_name: pid for pid, p_name in participants}
+            self.participants[cid] = {p_name.title(): pid for pid, p_name in participants}
 
             self.brackets[cid] = {}
             for participant, pid in self.participants[cid].items():
