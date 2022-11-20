@@ -460,7 +460,7 @@ app.layout = dbc.Container(
        dbc.Tabs(
             [
                 dbc.Tab(rules_tab_content, label="Rules and Point System"),
-                dbc.Tab(signup_tab_content, label="Sign Up"),
+                #dbc.Tab(signup_tab_content, label="Sign Up"),
                 #dbc.Tab(standings_tab_content, label="Standings"),
                 #dbc.Tab(score_pred_tab_content, label="Upcoming Predicted Scores"),
                 #dbc.Tab(team_pred_tab_content, label="Predicted Teams"),
@@ -483,6 +483,7 @@ app.layout = dbc.Container(
     fluid=True,
     )
 
+'''
 # --- Callbacks --- #
 @app.callback(
     Output("submit-success-alert", "is_open"),
@@ -531,7 +532,6 @@ def check_validity(email):
         return is_valid, not is_valid
     return False, False
 
-'''
 # Multiple components can update everytime interval gets fired.
 @app.callback(
               [
