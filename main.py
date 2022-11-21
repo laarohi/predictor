@@ -466,13 +466,12 @@ app.layout = dbc.Container(
        html.Div(id = 'today-score-cards'),
        dbc.Tabs(
             [
-                dbc.Tab(rules_tab_content, label="Rules and Point System"),
                 #dbc.Tab(signup_tab_content, label="Sign Up"),
                 dbc.Tab(standings_tab_content, label="Standings"),
                 dbc.Tab(score_pred_tab_content, label="Upcoming Predicted Scores"),
                 dbc.Tab(team_pred_tab_content, label="Predicted Teams"),
                 dbc.Tab(result_tab_content, label="Results and Fixtures"),
-                # add a tab with the rules and points system
+                dbc.Tab(rules_tab_content, label="Rules and Point System"),
             ]
                 ),
         dcc.Interval(

@@ -3,6 +3,7 @@ import random
 import dateutil.parser
 from bs4 import BeautifulSoup
 from urllib import parse
+from time import time, sleep
 from datetime import datetime
 from collections import namedtuple
 
@@ -33,6 +34,19 @@ def fetch_beautiful_markup(url):
     parsed_markup = BeautifulSoup(livescore_html.text, 'html.parser')
     
     return parsed_markup
+
+code_url = 'http://www.rsssf.com/miscellaneous/fifa-codes.html'
+codes = fetch_beautiful_markup(code_url)
+codes = codes.pre.get_text().splitlines()
+codes = [l.replace('\t', '').replace('-----','---') for l in codes if '\t' in l]
+fifa_codes = {l[:-6]:l[-6:-3] for l in codes}
+fifa_codes['North Macedonia'] = fifa_codes.pop('Macedonia FYR')
+fifa_codes['Netherlands'] = fifa_codes.pop('Holland')
+fifa_codes['Usa'] = fifa_codes.pop('United States of America')
+fifa_codes['South Korea'] = fifa_codes.pop('Korea Republic')
+fifa_codes['Australia'] = 'AUS'
+# two way mapping
+fifa_codes.update({v:k for k,v in fifa_codes.items()})
 
 
 def extract_scores(url):
@@ -143,7 +157,7 @@ def populate_from_livescore(url, db):
 
 
 
-def update_from_livescore(url, db, scores=True, fixtures=False):
+def update_from_livescore(url, db, full=False, scores=True, fixtures=False):
     """
     populate the score and/or fixtures sql tables from livescore 
 
@@ -151,7 +165,11 @@ def update_from_livescore(url, db, scores=True, fixtures=False):
     for score table we always want to replace the current row in its entirety
     """
 
-    comp_results = scrape_competition_from_livescore(url)
+    if full:
+        comp_results = scrape_competition_from_livescore(url)
+    else:
+        comp_results = extract_scores(url)
+
     score_query = """REPLACE INTO score (home_score , away_score , match_id , source ) 
             VALUES (%s,%s,%s,%s)"""
     fixture_query = """UPDATE fixtures 
@@ -160,33 +178,39 @@ def update_from_livescore(url, db, scores=True, fixtures=False):
 
     for stage in comp_results.values():
         for fixture in stage.values():
+            if not fixtures and (fixture.home_score is None or fixture.home_score == '?'):
+                continue
             match_id = db.get("fixtures","id", livescore_id=fixture.id)
             if scores:
                 entry = (fixture.home_score, fixture.away_score, match_id, 'livescore')
-                print(entry)
                 if fixture.home_score is not None and fixture.home_score != '?':
                     db.query(score_query, entry)
             if fixtures:
                 entry = (fixture.home_team, fixture.away_team, fixture.id)
-                print(entry)
                 db.query(fixture_query, entry)
 
-    
-code_url = 'http://www.rsssf.com/miscellaneous/fifa-codes.html'
-codes = fetch_beautiful_markup(code_url)
-codes = codes.pre.get_text().splitlines()
-codes = [l.replace('\t', '').replace('-----','---') for l in codes if '\t' in l]
-fifa_codes = {l[:-6]:l[-6:-3] for l in codes}
-fifa_codes['North Macedonia'] = fifa_codes.pop('Macedonia FYR')
-fifa_codes['Netherlands'] = fifa_codes.pop('Holland')
-fifa_codes['Usa'] = fifa_codes.pop('United States of America')
-fifa_codes['South Korea'] = fifa_codes.pop('Korea Republic')
-fifa_codes['Australia'] = 'AUS'
-# two way mapping
-fifa_codes.update({v:k for k,v in fifa_codes.items()})
+
+def main(url, db, update_interval, rescrape_interval):
+    last_update = time()
+    last_rescrape = time()
+    while True:
+        if (time() - last_rescrape) > rescrape_interval:
+            print('Rescraping entire competition from livescore')
+            update_from_livescore(url, db, full=True, scores=True, fixtures=False)
+            last_rescrape = time()
+        elif (time() - last_update) > update_interval:
+            print('Updating scores from livescore')
+            update_from_livescore(url, db, full=False, scores=True, fixtures=False)
+            last_update = time()
+        
+        sleep(update_interval)
+
 
 if __name__ == "__main__":
-    url = "https://www.livescores.com/football/world-cup/?tz=1"
     from util import DB, config
+    url = config['livescore']['url']
+    update_interval = config['livescore']['interval']['update']
+    rescrape_interval = config['livescore']['interval'].get('rescrape', 1e12)
     db = DB(config['sql'])
+    main(url, db, update_interval, rescrape_interval)
     #res = scrape_competition_from_livescore(url)

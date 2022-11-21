@@ -2,6 +2,8 @@ tournament: 'World Cup Predictor 2022'
 
 livescore:
     url: 'https://www.livescores.com/football/world-cup/?tz=1'
+    interval:
+        update: 60
 
 google_api:
   template_id: '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
