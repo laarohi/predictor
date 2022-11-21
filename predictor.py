@@ -149,7 +149,7 @@ class Score():
                     teams = [t[0] for t in self.teams]
                 else:
                     teams =  self.teams
-                return f'{teams[0]} ? - ? {teams[1]}'
+                return f'{teams[0]} - {teams[1]}'
             else:
                 return f'{self.mid}: ? - ?'
     
