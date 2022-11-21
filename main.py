@@ -561,18 +561,18 @@ def update_scoring_live(n):
         o_df = df.groupby(level=1, axis=1).sum()
         o_tbl = prep_standings(o_df)
         tab = dbc.Tab(dbc.Card(dbc.CardBody([o_tbl]),className="mt-3"),
-                                label='Overall')
+                                label='Overall', tab_id=f'standings-{comp}-overall')
         p_tabs.append(tab)
         for phase in df.columns.get_level_values(0).unique():
             p_tbl = prep_standings(df[phase].copy())
             tab = dbc.Tab(dbc.Card(dbc.CardBody([p_tbl]),className="mt-3"),
-                                    label=f'Phase {phase}')
+                                    label=f'Phase {phase}', tab_id=f'standings-{comp}-{phase}')
             p_tabs.append(tab)
         
         phase_tabs = dbc.Tabs(p_tabs, persistence=True)
 
         c_tab = dbc.Tab(dbc.Card(dbc.CardBody([phase_tabs]),className="mt-3"),
-                            label=comp)
+                            label=comp, tab_id='standings-{comp}')
         comp_tabs.append(c_tab)
     
     score_cards = get_score_cards(tournament.actual.matches)
@@ -595,7 +595,7 @@ def update_pred_scores_live(n):
         df.index.name = 'Name'
         df = df.reset_index()
         tbl = dbc.Table.from_dataframe(df, dark=DARK, striped=True, bordered=True, hover=True)
-        tab = dbc.Tab(dbc.Card(dbc.CardBody([tbl]),className="mt-3"), label=comp)
+        tab = dbc.Tab(dbc.Card(dbc.CardBody([tbl]),className="mt-3"), label=comp, tab_id=f'scores-{comp}')
         comp_tabs.append(tab)
     
     return dbc.Tabs(comp_tabs, persistence=True)
@@ -621,16 +621,16 @@ def update_pred_teams_live(n):
                 s_table = dbc.Table.from_dataframe(sdf,
                             dark=DARK, striped=True, bordered=True, hover=True)
                 tab = dbc.Tab(dbc.Card(dbc.CardBody([s_table]),className="mt-3"),
-                                label=stage)
+                                label=stage, tab_id=f'teams-{comp}-{phase}-{stage}')
                 s_tabs.append(tab)
 
             stage_tabs = dbc.Tabs(s_tabs, persistence=True)
             tab = dbc.Tab(dbc.Card(dbc.CardBody([stage_tabs]),className="mt-3"),
-                                label=f'Phase {phase}')
+                                label=f'Phase {phase}', tab_id=f'teams-{comp}-{phase}')
             p_tabs.append(tab)
         phase_tabs = dbc.Tabs(p_tabs, persistence=True)
         c_tab = dbc.Tab(dbc.Card(dbc.CardBody([phase_tabs]),className="mt-3"),
-                            label=comp)
+                            label=comp, tab_id=f'teams-{comp}')
         comp_tabs.append(c_tab)
 
     return dbc.Tabs(comp_tabs, persistence=True)
