@@ -472,7 +472,8 @@ app.layout = dbc.Container(
                 dbc.Tab(team_pred_tab_content, label="Predicted Teams"),
                 dbc.Tab(result_tab_content, label="Results and Fixtures"),
                 dbc.Tab(rules_tab_content, label="Rules and Point System"),
-            ]
+            ],
+            persistence=True,
                 ),
         dcc.Interval(
             id='scoring-interval-component',
@@ -568,7 +569,7 @@ def update_scoring_live(n):
                                     label=f'Phase {phase}')
             p_tabs.append(tab)
         
-        phase_tabs = dbc.Tabs(p_tabs)
+        phase_tabs = dbc.Tabs(p_tabs, persistence=True)
 
         c_tab = dbc.Tab(dbc.Card(dbc.CardBody([phase_tabs]),className="mt-3"),
                             label=comp)
@@ -577,7 +578,7 @@ def update_scoring_live(n):
     score_cards = get_score_cards(tournament.actual.matches)
     live_score_cards = get_score_cards(tournament.actual.matches, tdy=True)
 
-    return (dbc.Tabs(comp_tabs), 
+    return (dbc.Tabs(comp_tabs, persistence=True), 
             score_cards,
             live_score_cards,
            )
@@ -597,7 +598,7 @@ def update_pred_scores_live(n):
         tab = dbc.Tab(dbc.Card(dbc.CardBody([tbl]),className="mt-3"), label=comp)
         comp_tabs.append(tab)
     
-    return dbc.Tabs(comp_tabs)
+    return dbc.Tabs(comp_tabs, persistence=True)
 
 @app.callback(
               Output('pred-team-table', 'children'),
@@ -623,16 +624,16 @@ def update_pred_teams_live(n):
                                 label=stage)
                 s_tabs.append(tab)
 
-            stage_tabs = dbc.Tabs(s_tabs)
+            stage_tabs = dbc.Tabs(s_tabs, persistence=True)
             tab = dbc.Tab(dbc.Card(dbc.CardBody([stage_tabs]),className="mt-3"),
                                 label=f'Phase {phase}')
             p_tabs.append(tab)
-        phase_tabs = dbc.Tabs(p_tabs)
+        phase_tabs = dbc.Tabs(p_tabs, persistence=True)
         c_tab = dbc.Tab(dbc.Card(dbc.CardBody([phase_tabs]),className="mt-3"),
                             label=comp)
         comp_tabs.append(c_tab)
 
-    return dbc.Tabs(comp_tabs)
+    return dbc.Tabs(comp_tabs, persistence=True)
 
 
 if __name__ == '__main__':
