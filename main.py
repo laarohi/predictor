@@ -572,7 +572,7 @@ def update_scoring_live(n):
         phase_tabs = dbc.Tabs(p_tabs, persistence=True)
 
         c_tab = dbc.Tab(dbc.Card(dbc.CardBody([phase_tabs]),className="mt-3"),
-                            label=comp, tab_id='standings-{comp}')
+                            label=comp, tab_id=f'standings-{comp}')
         comp_tabs.append(c_tab)
     
     score_cards = get_score_cards(tournament.actual.matches)
