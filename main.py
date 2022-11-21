@@ -116,7 +116,7 @@ def get_score_cards(matches, tdy=None):
                     ),
                 ] 
             row.append(dbc.Col(dbc.Card(card_content, color=col, inverse=True, 
-                className="mb-4"), width=3))
+                className="mb-4"), xs=9, sm=7, md=5, lg=3, xl=2))
 
     cards.append(dbc.Row(row, className="mb-4", justify='center'))
     return cards
