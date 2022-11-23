@@ -154,7 +154,7 @@ class Score():
                 return f'{self.mid}: ? - ?'
     
     def __repr__(self):
-        return self.__str__()
+        return f'Match({self.__str__()})'
     
     
     @property
@@ -312,7 +312,7 @@ class Stage():
             missing_matches = set(self.matches.keys()) - set(other.matches.keys())
             #if missing_matches:
             #    print(f'Warning missing matches! {missing_matches}')
-            for mid, match in self.matches.items():
+            for mid, match in sorted(self.matches.items(), key= lambda x: x[1].dt):
                 other_match = other.matches.get(mid)
                 if other_match and (t0 <= (other_match.dt.date() - datetime.now().date()).days <= t1):
                     matches[other_match.matchup] = match.__str__()
