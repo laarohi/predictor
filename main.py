@@ -622,7 +622,7 @@ def update_pred_scores_live(n):
     for comp, df in dfs.items():
         df.index.name = 'Name'
         df = df.reset_index()
-        tbl = dbc.Table.from_dataframe(df, dark=DARK, striped=True, bordered=True, hover=True)
+        tbl = dbc.Table.from_dataframe(df, dark=DARK, striped=True, bordered=True, hover=True, responsive=True)
         tab = dbc.Tab(dbc.Card(dbc.CardBody([tbl]),className="mt-3"), label=comp, tab_id=f'scores-{comp}')
         comp_tabs.append(tab)
     
