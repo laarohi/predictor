@@ -376,6 +376,34 @@ signup_tab_content = dbc.Card(
     className="mt-3",
 )
 
+'''
+comp_tabs = []
+standing_outputs = []
+for cid, comp in tournament.competitions.items():
+    p_tabs = []
+    component_id = f'standings-{comp}-overall'
+    tab = dbc.Tab(dbc.Card(dbc.CardBody(id=component_id),className="mt-3"),
+                            label='Overall')
+    standing_outputs.append(Output(component_id, 'children'))
+
+    p_tabs.append(tab)
+    for phase in df.columns.get_level_values(0).unique():
+        component_id=f'standings-{comp}-{phase}'
+        tab = dbc.Tab(dbc.Card(dbc.CardBody(id=component_id),className="mt-3"),
+                                label=f'Phase {phase}')
+        standing_outputs.append(Output(component_id, 'children'))
+        p_tabs.append(tab)
+    
+    phase_tabs = dbc.Tabs(p_tabs, persistence=True)
+
+    c_tab = dbc.Tab(dbc.Card(dbc.CardBody([phase_tabs]),className="mt-3"),
+                        label=comp)
+    comp_tabs.append(c_tab)
+
+comp_tabs = dbc.Tabs(comp_tabs, persistence=True)
+'''
+
+
 standings_tab_content = dbc.Card(
     dbc.CardBody(
         [
@@ -477,12 +505,12 @@ app.layout = dbc.Container(
                 ),
         dcc.Interval(
             id='scoring-interval-component',
-            interval=1*60*1*1000, # in milliseconds
+            interval=1*1*60*1000, # in milliseconds
             n_intervals=0
         ),
         dcc.Interval(
             id='pred-interval-component',
-            interval=24*60*60*1*1000, # in milliseconds
+            interval=6*60*60*1000, # in milliseconds
             n_intervals=0
         ),
 
@@ -590,7 +618,7 @@ def update_scoring_live(n):
               Input('pred-interval-component', 'n_intervals'))
 def update_pred_scores_live(n):
     comp_tabs = []
-    dfs = tournament.predicted_scores
+    dfs = tournament.predicted_scores(0,1)
     for comp, df in dfs.items():
         df.index.name = 'Name'
         df = df.reset_index()

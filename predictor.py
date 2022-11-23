@@ -306,7 +306,7 @@ class Stage():
             
         return points
     
-    def get_upcoming_scores(self, other):
+    def get_upcoming_scores(self, other, t0, t1):
         matches = {}
         if self.matches:
             missing_matches = set(self.matches.keys()) - set(other.matches.keys())
@@ -314,7 +314,7 @@ class Stage():
             #    print(f'Warning missing matches! {missing_matches}')
             for mid, match in self.matches.items():
                 other_match = other.matches.get(mid)
-                if other_match and (-1 <= (other_match.dt.date() - datetime.now().date()).days <= 2):
+                if other_match and (t0 <= (other_match.dt.date() - datetime.now().date()).days <= t1):
                     matches[other_match.matchup] = match.__str__()
         return matches
         
@@ -376,11 +376,11 @@ class Bracket():
             
         return points
     
-    def get_upcoming_scores(self, other):
+    def get_upcoming_scores(self, other, t0, t1):
         matches = {}
         for stage, dat in self.dat.items():
             if dat.matches:
-                matches.update(dat.get_upcoming_scores(other.dat[stage]))
+                matches.update(dat.get_upcoming_scores(other.dat[stage], t0, t1))
         return matches
 
     @property
@@ -473,15 +473,14 @@ class Tournament():
         
         return res
     
-    @property
-    def predicted_scores(self):
+    def predicted_scores(self, t0, t1):
         res = {}
         for cid, comp in self.competitions.items():
             scores = {}
             for name, (phase1, phase2) in self.brackets[cid].items():
                 name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
-                scores[name] = phase1.get_upcoming_scores(self.actual)
-                scores[name].update(phase2.get_upcoming_scores(self.actual))
+                scores[name] = phase1.get_upcoming_scores(self.actual, t0, t1)
+                scores[name].update(phase2.get_upcoming_scores(self.actual, t0, t1))
             scores = pd.DataFrame.from_dict(scores).T.sort_index()
             res[comp] = scores
         
@@ -503,3 +502,9 @@ class Tournament():
             res[comp] = teams
 
         return res
+
+if __name__ == '__main__':
+    from util import config, DB
+    db = DB(config['sql'])
+    t_name = config['tournament']
+    tournament = Tournament(t_name, db, config)
