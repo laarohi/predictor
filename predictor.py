@@ -5,10 +5,10 @@ import time
 from collections import Counter
 from datetime import datetime
 
-import yaml
 import pandas as pd
 
 from livescore import fifa_codes
+
 
 def get_predictions_db(db, pid, stage, phase):
     match_query = '''
@@ -23,8 +23,16 @@ def get_predictions_db(db, pid, stage, phase):
         FROM team_prediction
         WHERE participant_id=%s AND stage=%s AND phase=%s
     '''
+    group_query = '''
+        SELECT DISTINCT home_team, stage
+        FROM fixtures
+        WHERE stage LIKE 'Group%'
+    '''
+    groups = db.query(group_query)
+    group_map = {t:g for t,g in groups}
 
-    if stage == 'Group Stage': stage = 'Group%'
+    if stage == 'Group Stage': 
+        stage = 'Group%'
 
     match_preds = db.query(match_query, (pid, stage, phase) )
     matches = {}
@@ -43,7 +51,13 @@ def get_predictions_db(db, pid, stage, phase):
             team_preds = (team_preds,)
         for team, group_order in team_preds:
             if group_order:
-                teams.append((team, group_order))
+                if stage == 'Round of 16':
+                    g = group_map[team]
+                    if group_order==1:
+                        o = f'{g} 1st'
+                    elif group_order==2:
+                        o = f'{g} 2nd'
+                teams.append((team, o))
             else:
                 teams.append(team)
 
@@ -192,7 +206,7 @@ class Score():
 
         
 class Stage():
-    def __init__(self, name, matches=None, teams=None, outcome=None, result=None, qualified=None, ordering=None):
+    def __init__(self, name, matches=None, teams=None, outcome=None, result=None, qualified=None, ordering=None, questions=None):
         '''
         matches - a dict of matches and the corresponding scores scores could be in string or Score format
         teams - a list of teams who qualified for this stage
@@ -204,6 +218,7 @@ class Stage():
         self.result = result or 0
         self.qualified = qualified or 0
         self.ordering = ordering or 0
+        self.questions = questions
         if matches:
             test_match = list(matches.values())[0]
             if isinstance(test_match, str):
@@ -221,6 +236,9 @@ class Stage():
                     match_teams = [fifa_codes.get(team.title(), team) for team in match_teams]
                 self.teams = set(match_teams) or None
         if teams:
+            if self.questions:
+                assert len(self.questions) == len(teams)
+                teams = list(zip(teams, self.questions))
             if isinstance(teams, tuple):
                 if isinstance(teams[0], str):
                     try:
@@ -324,8 +342,10 @@ class Stage():
                 teams = sorted(list(self.teams))
             else:
                 teams = list(self.teams)
-                if isinstance(teams[0], str):
-                    return [t.split()[-1].title() for t in teams]
+            if isinstance(teams[0], tuple):
+                teams = {t[1]:t[0].split()[-1].upper() for t in sorted(teams, key = lambda t: t[1])}
+            else:
+                teams = {i+1:t for i,t in enumerate(teams)}
             return teams
             
 
@@ -388,7 +408,7 @@ class Bracket():
         teams = {}
         for key, stage in self.dat.items():
             if stage.get_teams():
-                teams[(self.phase, key)] = stage.get_teams()
+                teams[(self.phase, key)] = list(stage.get_teams().values())
         return teams
 
     @property
@@ -399,6 +419,14 @@ class Bracket():
                 matches.update(stage.matches)
 
         return matches
+    
+    def get_teams(self):
+        teams = {}
+        for key, stage in self.dat.items():
+            if stage.teams:
+                for label, team in stage.get_teams().items():
+                    teams[(self.phase, key, label)] = team
+        return teams
     
 
 class ActualBracket(Bracket):
@@ -495,9 +523,9 @@ class Tournament():
                 name = re.sub(r"(\w)([A-Z])", r"\1 \2", name)
                 teams[name] = {}
                 if phase1.teams:
-                    teams[name].update(phase1.teams)
+                    teams[name].update(phase1.get_teams())
                 if phase2.teams:
-                    teams[name].update(phase2.teams)
+                    teams[name].update(phase2.get_teams())
             teams = pd.DataFrame.from_dict(teams, orient='index').sort_index()
             res[comp] = teams
 

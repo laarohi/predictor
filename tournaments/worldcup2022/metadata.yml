@@ -55,9 +55,18 @@ scoring:
         Winner:
             qualified: 70
         Bonus GS:
-            qualified: 15
+            ordering: 15
+            questions:
+                - Score Most Goals
+                - Concede Most Goals
+                - Score Least Goals
         Bonus KO:
-            qualified: 20
+            ordering: 20
+            questions:
+                - Best Player
+                - Top Scorer
+                - Best Young Player
+
     
     Phase 2:
         Round of 16:

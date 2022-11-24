@@ -207,7 +207,7 @@ def copy_protected_ranges(service, old_sheet, new_sheet, warning=False):
     
     return res
 
-def update_protected_ranges(service, sheet_id, protected_range, warning=False):
+def update_protected_ranges(service, old_sheet, new_sheet, protected_range, warning=False):
     requests = []
 
     old_spreadsheet_info = service.spreadsheets().get(
@@ -332,7 +332,7 @@ class DB:
         self.conn = MySQLdb.connect(host=self.host, passwd=self.passwd, user=self.user, db=self.db)
     
     @_reconnect
-    def query(self, query, args=()):
+    def query(self, query, args=None):
         res = None
         c = self.conn.cursor()
         exists = c.execute(query, args)
@@ -400,6 +400,7 @@ def update_predictions_db(sheets, db, phase):
                 team_b = row[3]
                 entry = (team_b, 'Round of 16', team_b_order, phase, pid)
                 db.query(insert_team_query, entry)
+            
                 
             for stage, dat in data.items():
                 db.query(delete_team_query, (stage, phase, pid))

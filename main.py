@@ -77,7 +77,7 @@ def prep_standings(df):
     df = df.reset_index()
     cols = [col for col in col_ordering if col in df.columns]
     df = df[cols]
-    tbl = dbc.Table.from_dataframe(df, dark=DARK, striped=True, bordered=True, hover=True)
+    tbl = dbc.Table.from_dataframe(df, dark=DARK, striped=True, bordered=True, hover=True, responseive=True)
     return tbl
 
 
@@ -639,15 +639,13 @@ def update_pred_teams_live(n):
         for phase in df.columns.get_level_values(0).unique():
             pdf = df[phase]
             s_tabs = []
-            for stage in pdf.columns:
-                if stage in ('Group Stage', 'Round of 16'): continue
-                stage_s = pdf[stage]
-                cols = [stage + ' ' + str(i) for i in range(1, len(stage_s[0])+1)]
-                sdf = DataFrame.from_dict(dict(zip(df.index, stage_s.values)), orient='index', columns=cols)
+            for stage in pdf.columns.get_level_values(0).unique():
+                if stage == 'Group Stage': continue
+                sdf = pdf[stage]
                 sdf.index.name = 'Name'
                 sdf = sdf.reset_index()
                 s_table = dbc.Table.from_dataframe(sdf,
-                            dark=DARK, striped=True, bordered=True, hover=True)
+                            dark=DARK, striped=True, bordered=True, hover=True, responsive=True)
                 tab = dbc.Tab(dbc.Card(dbc.CardBody([s_table]),className="mt-3"),
                                 label=stage, tab_id=f'teams-{comp}-{phase}-{stage}')
                 s_tabs.append(tab)
