@@ -343,7 +343,7 @@ class Stage():
             else:
                 teams = list(self.teams)
             if isinstance(teams[0], tuple):
-                teams = {t[1]:t[0].split()[-1].upper() for t in sorted(teams, key = lambda t: t[1])}
+                teams = {t[1]:t[0].upper() for t in sorted(teams, key = lambda t: t[1])}
             else:
                 teams = {i+1:t for i,t in enumerate(teams)}
             return teams
