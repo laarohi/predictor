@@ -77,7 +77,7 @@ def prep_standings(df):
     df = df.reset_index()
     cols = [col for col in col_ordering if col in df.columns]
     df = df[cols]
-    tbl = dbc.Table.from_dataframe(df, dark=DARK, striped=True, bordered=True, hover=True, responseive=True)
+    tbl = dbc.Table.from_dataframe(df, dark=DARK, striped=True, bordered=True, hover=True, responsive=True)
     return tbl
 
 
