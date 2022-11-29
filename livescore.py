@@ -173,7 +173,7 @@ def update_from_livescore(url, db, full=False, scores=True, fixtures=False):
     score_query = """REPLACE INTO score (home_score , away_score , match_id , source ) 
             VALUES (%s,%s,%s,%s)"""
     fixture_query = """UPDATE fixtures 
-            SET home_team=%s, away_team=%s, 
+            SET home_team=%s, away_team=%s
             WHERE livescore_id=%s"""
 
     for stage in comp_results.values():
@@ -196,12 +196,12 @@ def main(url, db, update_interval, rescrape_interval):
     while True:
         if (time() - last_rescrape) > rescrape_interval:
             print('Rescraping entire competition from livescore')
-            update_from_livescore(url, db, full=True, scores=True, fixtures=False)
             last_rescrape = time()
+            update_from_livescore(url, db, full=True, scores=True, fixtures=False)
         elif (time() - last_update) > update_interval:
             print('Updating scores from livescore')
-            update_from_livescore(url, db, full=False, scores=True, fixtures=False)
             last_update = time()
+            update_from_livescore(url, db, full=False, scores=True, fixtures=True)
         
         sleep(update_interval)
 
