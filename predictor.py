@@ -70,6 +70,15 @@ def get_results_db(db):
         LEFT JOIN score as s
         ON s.match_id=f.id
     '''
+    group_query = '''
+        SELECT DISTINCT home_team, stage
+        FROM fixtures
+        WHERE stage LIKE 'Group%'
+    '''
+    groups = db.query(group_query)
+    group_map = {t:g for t,g in groups}
+    ro16_teams = []
+
     results = db.query(results_query)
     stage_scores = {}
     if results:
@@ -82,11 +91,22 @@ def get_results_db(db):
                 stage_scores[stage] = {}
             score = (home_score, away_score)
             m_teams = (home_team, away_team)
+
+            if stage and stage == 'Round of 16':
+                if home_team in group_map:
+                    home_order = f"{group_map[home_team]} 1st"
+                    ro16_teams.append((home_team, home_order))
+                if away_team in group_map:
+                    away_order = f"{group_map[away_team]} 2nd"
+                    ro16_teams.append((away_team, away_order))
             stage_scores[stage][mid] = Score(mid, score, m_teams, dt=kickoff, stage=stage)
     
     stages = {}
     for stage, scores in stage_scores.items():
-        stages[stage] = Stage(stage, scores)
+        if stage == "Round of 16":
+            stages[stage] = Stage(stage, scores, teams=ro16_teams)
+        else:
+            stages[stage] = Stage(stage, scores)
 
     return stages
 
