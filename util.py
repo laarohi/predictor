@@ -149,8 +149,8 @@ def update_sheet(service, sheet_id, to_update, sheet=None, value_input_option='R
         if sheet:
             c = sheet + '!' + c
         if not isinstance(v, list): 
-            v = [v]
-        data.append({'range':c, 'values':[v]})
+            v = [[v]]
+        data.append({'range':c, 'values':v})
 
     body = {'valueInputOption': value_input_option, 'data':data}
 
@@ -467,7 +467,16 @@ def check_status_sheet(sheets, db, phase):
 
     return res
 
-        
+def update_bracket_sheet(sheets, template, db):
+    b_ranges = config['sheet_ranges']['bracket']
+    b_data = get_sheet_data(sheets, template, b_ranges)
+    to_update = {b_ranges[k]:v for k,v in b_data.items()}
+    sheet_ids = db.get('participant','sheet_id')
+    for sheet_id in sheet_ids:
+        if isinstance(sheet_id, tuple) and len(sheet_id) == 1:
+            sheet_id = sheet_id[0]
+        update_sheet(sheets, sheet_id, to_update)
+
 
 def lock_prediction_sheet(sheets, db, phase):
 
@@ -534,13 +543,13 @@ if 1 and __name__ == '__main__':
     #db = DB(config['sql'])
     creds = get_creds('google_token.json','google_credentials.json')
     services = build_services(creds)
-    #tid = '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
+    tid = '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
     #fid = '1wTnX3wApK8Mpe7LkptJSDPCIHhuOuxyR'
     #gen_entry(creds, 'Vinay','Aarohi','vinay.aarohi@atlas.com.mt',1, db, tid, fid, 'World Cup 2022 Predictor')
     sheet_id = '1P9QBDWj5dpBhQaygnyl_qgoZjrvyBfW2dDPkaXPNUrM'
     db = DB(config['sql'])
     #ranges = config['google_api']['sheet_ranges']['phase I']
-    res = check_status_sheet(services['sheets'], db, phase=1)
+    #res = check_status_sheet(services['sheets'], db, phase=1)
     #res = get_sheet_data(services['sheets'], sheet_id, ranges)
     #print(res)
 

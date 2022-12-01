@@ -23,6 +23,9 @@ sheet_ranges:
         Quarter-Finals: InternalUseOnly!C12:F15
         Semi-Finals: InternalUseOnly!C17:F18
         Finals: InternalUseOnly!C20:F20
+    bracket:
+        group_winners: World Cup!I109:I116
+        group_runnersup: World Cup!N109:N116
 
 
 #host user and passwd can be either environment variables or values
