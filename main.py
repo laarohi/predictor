@@ -220,12 +220,20 @@ rules_tab_content = dbc.Card(
                         dbc.Card([
                             dbc.CardHeader('Prize Split'),
                             dbc.CardBody(className='card-text', children=[
-                                html.P("The actual prize split will be updated once the price pool is known but the prize split will be as follows:"),
+                                html.H5("Prize Split:"),
+                                html.H6("Main Competition:"),
                                 html.Ul(children=[
-                                    html.Li("60% to Overall Winner"),
-                                    html.Li("20% to Overall Runner Up"),
-                                    html.Li("10% to Group Stage Winner"),
-                                    html.Li("10% to Phase II Winner"),
+                                    html.Li("€400 to Overall Winner"),
+                                    html.Li("€150 to Overall Runner Up"),
+                                    html.Li("€50 to Group Stage Winner"),
+                                    html.Li("€50 to Phase II Winner"),
+                                ]),
+                                html.H6("Ta' Giorni Wanderers:"),
+                                html.Ul(children=[
+                                    html.Li("€110 to Overall Winner"),
+                                    html.Li("€40 to Overall Runner Up"),
+                                    html.Li("€20 to Group Stage Winner"),
+                                    html.Li("€20 to Phase II Winner"),
                                 ]),
                                 html.P("The Group Stage Winner will be the person who has the most points after the Group Stage is complete.")
 

@@ -1,5 +1,9 @@
 tournament: 'World Cup Predictor 2022'
 
+deadline:
+    Phase 1: 2022-11-20 15:00:00+01:00
+    Phase 2: 2022-12-03 15:00:00+01:00
+
 livescore:
     url: 'https://www.livescores.com/football/world-cup/?tz=1'
     interval:
