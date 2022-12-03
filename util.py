@@ -416,28 +416,34 @@ def update_predictions_db(sheets, db, phase):
         # TODO Test this before actually using it 
         sheet_ranges = config['sheet_ranges']['Phase 2'] 
         for pid, sheet_id in participant_sheets:
-            data = get_sheet_data(sheets, sheet_id, sheet_ranges)
-            for stage, dat in data.items():
-                db.query(delete_team_query, (stage, pid))
-                match_ids = db.get("fixtures", "id", order_by="kickoff", stage="Round of 16")
-                for match_id, (home_team, home_score, away_team, away_score) in zip(match_ids, data):
-                    score = f'{home_score}-{away_score}'
-                    if '*' in score:
-                        o = score.find('*') - score.find('-')
-                        if o > 0:
-                            match_result = 2
-                        elif o < 0:
-                            match_result = 1
-                        home_score = home_score.replace('*', '')
-                        away_score = away_score.replace('*', '')
-                    else:
-                        match_result = None
-                    match_entry = (home_score, away_score, match_id, match_result, phase, pid)
-                    db.query(match_query, match_entry)
-                    home_team_entry = (home_team, stage, None, phase, pid)
-                    away_team_entry = (away_team, stage, None, phase, pid)
-                    db.query(insert_team_query, home_team_entry)
-                    db.query(insert_team_query, away_team_entry)
+            try:
+                data = get_sheet_data(sheets, sheet_id, sheet_ranges)
+                for stage, dat in data.items():
+                    db.query(delete_team_query, (stage, phase, pid))
+                    match_ids = db.get("fixtures", "id", order_by="kickoff", stage=stage)
+                    if not isinstance(match_ids, (list, tuple)):
+                        match_ids = [match_ids]
+                    for match_id, (home_team, home_score, away_team, away_score) in zip(match_ids, dat):
+                        score = f'{home_score}-{away_score}'
+                        if '*' in score:
+                            o = score.find('*') - score.find('-')
+                            if o > 0:
+                                match_result = 2
+                            elif o < 0:
+                                match_result = 1
+                            home_score = home_score.replace('*', '')
+                            away_score = away_score.replace('*', '')
+                        else:
+                            match_result = None
+                        match_entry = (home_score, away_score, match_id, match_result, phase, pid)
+                        db.query(match_query, match_entry)
+                        home_team_entry = (home_team, stage, None, phase, pid)
+                        away_team_entry = (away_team, stage, None, phase, pid)
+                        db.query(insert_team_query, home_team_entry)
+                        db.query(insert_team_query, away_team_entry)
+                print(f'{pid} done!')
+            except:
+                print(f'{pid} failed!')
 
 
 def check_status_sheet(sheets, db, phase):
@@ -485,7 +491,6 @@ def update_bracket_sheet(sheets, template, db):
 def lock_prediction_sheet(sheets, db, phase):
 
     sheet_ids = db.get('participant','sheet_id')
-    sheet_ids = [('1P9QBDWj5dpBhQaygnyl_qgoZjrvyBfW2dDPkaXPNUrM')]
 
     if phase == 1:
         uprs = [

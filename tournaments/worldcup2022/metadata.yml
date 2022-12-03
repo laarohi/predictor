@@ -26,7 +26,7 @@ sheet_ranges:
         Round of 16: InternalUseOnly!C3:F10
         Quarter-Finals: InternalUseOnly!C12:F15
         Semi-Finals: InternalUseOnly!C17:F18
-        Finals: InternalUseOnly!C20:F20
+        Final: InternalUseOnly!C20:F20
     bracket:
         group_winners: World Cup!I109:I116
         group_runnersup: World Cup!N109:N116
