@@ -3,6 +3,8 @@ import base64
 import MySQLdb
 import yaml
 
+from time import sleep
+
 
 from email_validator import validate_email
 from email.message import EmailMessage
@@ -372,7 +374,7 @@ def update_predictions_db(sheets, db, phase):
     participant_sheets = db.get('participant', 'id, sheet_id')
     if not isinstance(participant_sheets[0], tuple):
         participant_sheets = [participant_sheets]
-
+    
     if phase == 1:
         template_id = config['google_api']['template_id']
         gs_row_map = group_stage_row_map(sheets, template_id, db)
@@ -464,6 +466,8 @@ def check_status_sheet(sheets, db, phase):
             res[cid]['Missing Predictions'].append(name)
         if paid and complete:
             res[cid]['Complete'].append(name)
+        
+        sleep(3)
 
     return res
 
@@ -481,6 +485,7 @@ def update_bracket_sheet(sheets, template, db):
 def lock_prediction_sheet(sheets, db, phase):
 
     sheet_ids = db.get('participant','sheet_id')
+    sheet_ids = [('1P9QBDWj5dpBhQaygnyl_qgoZjrvyBfW2dDPkaXPNUrM')]
 
     if phase == 1:
         uprs = [

@@ -1,5 +1,6 @@
 import requests
 import random
+import os
 import dateutil.parser
 from bs4 import BeautifulSoup
 from urllib import parse
@@ -190,9 +191,10 @@ def update_from_livescore(url, db, full=False, scores=True, fixtures=False):
                 db.query(fixture_query, entry)
 
 
-def main(url, db, update_interval, rescrape_interval):
+def main(url, db, update_interval, rescrape_interval, phase2_deadline):
     last_update = time()
     last_rescrape = time()
+    phase2_locked = time() > phase2_deadline
     while True:
         if (time() - last_rescrape) > rescrape_interval:
             print('Rescraping entire competition from livescore')
@@ -203,6 +205,22 @@ def main(url, db, update_interval, rescrape_interval):
             last_update = time()
             update_from_livescore(url, db, full=False, scores=True, fixtures=True)
         
+        if not phase2_locked and (time() > phase2_deadline):
+            from util import build_services, get_creds, lock_prediction_sheet, update_predictions_db
+            token = os.environ.get("GOOGLE_APP_TOKEN", "google_token.json")
+            creds_file = os.environ.get("GOOGLE_APP_CREDENTIALS", "google_credentials.json")
+            creds = get_creds(token, creds_file)
+            services = build_services(creds)
+            sheets = services['sheets']
+            try:
+                lock_prediction_sheet(sheets, db, 2)
+            except:
+                pass
+            try:
+                update_predictions_db(sheets, db, 2)
+            except:
+                pass
+        
         sleep(update_interval)
 
 
@@ -211,6 +229,6 @@ if __name__ == "__main__":
     url = config['livescore']['url']
     update_interval = config['livescore']['interval']['update']
     rescrape_interval = config['livescore']['interval'].get('rescrape', 1e12)
+    phase2_deadline = config['deadline']['Phase 2'].timestamp()
     db = DB(config['sql'])
-    main(url, db, update_interval, rescrape_interval)
-    #res = scrape_competition_from_livescore(url)
+    main(url, db, update_interval, rescrape_interval, phase2_deadline)
