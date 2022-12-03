@@ -4,6 +4,7 @@ import re
 import time
 from collections import Counter
 from datetime import datetime
+from itertools import product
 
 import pandas as pd
 
@@ -294,16 +295,43 @@ class Stage():
             return None
     
     @property
-    def highest_scoring_team(self):
+    def most_goals_scored(self):
         count = Counter()
         if self.matches:
             for match in self.matches.values():
                 count.update(match.goal_count)
         if len(count):
-            return count.most_common()[0][0]
+            max_count = count.most_common(1)[0][1]
+            return list(c[0] for c in count.most_common() if c[1] == max_count)
         else:
             return None
             
+    @property
+    def least_goals_scored(self):
+        count = Counter()
+        if self.matches:
+            for match in self.matches.values():
+                count.update(match.goal_count)
+        if len(count):
+            least_common = list(reversed(count.most_common()))
+            min_count = least_common[0][1]
+            return list(c[0] for c in least_common if c[1] == min_count)
+        else:
+            return None
+    
+    @property
+    def most_goals_conceded(self):
+        count = Counter()
+        if self.matches:
+            for match in self.matches.values():
+                gs = match.goal_count
+                goals_conceded = dict(zip(gs.keys(), reversed(list(gs.values()))))
+                count.update(goals_conceded)
+        if len(count):
+            max_count = count.most_common(1)[0][1]
+            return list(c[0] for c in count.most_common() if c[1] == max_count)
+        else:
+            return None
 
     def team_compare(self, other):
         '''
@@ -463,7 +491,11 @@ class ActualBracket(Bracket):
         winner = list(self.dat['Final'].matches.values())[0].winner
         if winner: winner = [winner]
         self.dat['Winner'] = Stage('Winner', teams=winner)
-        self.dat['Bonus GS'] = Stage('Bonus GS')
+        mgs = product(self.dat['Group Stage'].most_goals_scored, ["Score Most Goals"])
+        mgc = product(self.dat['Group Stage'].most_goals_conceded,[ "Concede Most Goals"])
+        lgs = product(self.dat['Group Stage'].least_goals_scored, ["Score Least Goals"])
+        bonus_gs = list(mgs) + list(lgs) + list(mgc)
+        self.dat['Bonus GS'] = Stage('Bonus GS', teams=bonus_gs)
         self.dat['Bonus KO'] = Stage('Bonus KO')
 
             

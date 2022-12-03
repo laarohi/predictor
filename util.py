@@ -549,7 +549,7 @@ if 1 and __name__ == '__main__':
     sheet_id = '1P9QBDWj5dpBhQaygnyl_qgoZjrvyBfW2dDPkaXPNUrM'
     db = DB(config['sql'])
     #ranges = config['google_api']['sheet_ranges']['phase I']
-    #res = check_status_sheet(services['sheets'], db, phase=1)
+    res = check_status_sheet(services['sheets'], db, phase=2)
     #res = get_sheet_data(services['sheets'], sheet_id, ranges)
     #print(res)
 
