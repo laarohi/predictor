@@ -11,7 +11,7 @@ import dash_bootstrap_components as dbc
 from pandas import DataFrame
 from dash.dependencies import Input, Output, State
 from predictor import Tournament
-from util import DB, config, gen_entry, build_services, get_creds
+from util import DB, config #, gen_entry, build_services, get_creds
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -48,13 +48,13 @@ color_code = {'Group Stage': 'info',
 
 db = DB(config['sql'])
 logger.info(f"connected to mysql database successfully: {db}")
-token = os.environ.get("GOOGLE_APP_TOKEN", "google_token.json")
-creds_file = os.environ.get("GOOGLE_APP_CREDENTIALS", "google_credentials.json")
-creds = get_creds(token, creds_file)
-services = build_services(creds)
-logger.info(f"build google services successfully")
-template_id = config['google_api']['template_id']
-folder_id = config['google_api']['folder_id']
+#token = os.environ.get("GOOGLE_APP_TOKEN", "google_token.json")
+#creds_file = os.environ.get("GOOGLE_APP_CREDENTIALS", "google_credentials.json")
+#creds = get_creds(token, creds_file)
+#services = build_services(creds)
+#logger.info(f"build google services successfully")
+#template_id = config['google_api']['template_id']
+#folder_id = config['google_api']['folder_id']
 
 t_name = config['tournament']
 tournament = Tournament(t_name, db, config)
