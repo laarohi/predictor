@@ -13,7 +13,7 @@ from livescore import fifa_codes
 
 def get_predictions_db(db, pid, stage, phase):
     match_query = '''
-        SELECT p.match_id, p.home_score, p.away_score, f.home_team, f.away_team, f.kickoff
+        SELECT p.match_id, p.home_score, p.away_score, p.match_result, f.home_team, f.away_team, f.kickoff
         FROM match_prediction as p
         LEFT JOIN fixtures as f
         ON p.match_id=f.id
@@ -40,10 +40,10 @@ def get_predictions_db(db, pid, stage, phase):
     if match_preds:
         if not isinstance(match_preds[0], tuple):
             match_preds = (match_preds,)
-        for mid, home_score, away_score, home_team, away_team, kickoff in match_preds:
+        for mid, home_score, away_score, match_outcome, home_team, away_team, kickoff in match_preds:
             score = (home_score, away_score)
             m_teams = (home_team, away_team)
-            matches[mid] = Score(mid, score, m_teams, dt=kickoff, stage=stage)
+            matches[mid] = Score(mid, score, m_teams, dt=kickoff, stage=stage, outcome=match_outcome)
 
     team_preds = db.query(team_query, (pid, stage, phase))
     teams = []
@@ -112,7 +112,7 @@ def get_results_db(db):
     return stages
 
 class Score():
-    def __init__(self, mid, score, teams=None, dt=None, stage=None, live=False, use_code=False):
+    def __init__(self, mid, score, teams=None, dt=None, stage=None, live=False, use_code=False, outcome=None):
         self.mid = mid
         self.home = None
         self.away = None
@@ -163,8 +163,10 @@ class Score():
             raise TypeError('unknown score format')
             
         # 1 - home_win; 0 - draw; 2 - away_win
+        self.outcome = outcome
         if self.outcome is None:
             self.outcome = (self.home != self.away) + (self.away>self.home)
+
         return 
 
         
@@ -418,9 +420,10 @@ class Bracket():
             if phase == 2:
                 if stage == 'Winner':
                     self.dat['Winner'] = Stage(name='Winner', teams=self.dat['Final'].winners, **scor)
-                if stage == 'Final':
-                    if matches:
-                        list(matches.values())[0].teams = tuple(teams)
+                else:
+                    if stage == 'Final':
+                        if matches:
+                            list(matches.values())[0].teams = tuple(teams)
                     self.dat[stage] = Stage(name=stage, matches=matches, teams=teams, **scor)
             else:
                 self.dat[stage] = Stage(name=stage, matches=matches, teams=teams, **scor)
