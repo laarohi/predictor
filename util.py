@@ -5,14 +5,16 @@ import yaml
 
 from time import sleep
 
+USE_GOOGLE = os.environ.get("USE_GOOGLE", 1)
 
 from email_validator import validate_email
 from email.message import EmailMessage
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+if USE_GOOGLE:
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
 
 
 metadata_path = os.environ.get("METADATA_YML", './tournaments/worldcup2022/metadata.yml')
@@ -550,17 +552,11 @@ def group_stage_row_map(sheets, sheet_id, db):
     
 
 if 1 and __name__ == '__main__':
-    #db = DB(config['sql'])
     creds = get_creds('google_token.json','google_credentials.json')
     services = build_services(creds)
     tid = '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
-    #fid = '1wTnX3wApK8Mpe7LkptJSDPCIHhuOuxyR'
-    #gen_entry(creds, 'Vinay','Aarohi','vinay.aarohi@atlas.com.mt',1, db, tid, fid, 'World Cup 2022 Predictor')
     sheet_id = '1P9QBDWj5dpBhQaygnyl_qgoZjrvyBfW2dDPkaXPNUrM'
     db = DB(config['sql'])
-    #ranges = config['google_api']['sheet_ranges']['phase I']
     res = check_status_sheet(services['sheets'], db, phase=2)
-    #res = get_sheet_data(services['sheets'], sheet_id, ranges)
-    #print(res)
 
 
