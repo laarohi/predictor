@@ -381,7 +381,8 @@ class Stage():
             for mid, match in sorted(self.matches.items(), key= lambda x: x[1].dt):
                 other_match = other.matches.get(mid)
                 if other_match and (t0 <= (other_match.dt.date() - datetime.now().date()).days <= t1):
-                    matches[other_match.matchup] = match.__str__()
+                    if set(other_match.teams).issubset(self.teams):
+                        matches[other_match.matchup] = match.__str__()
         return matches
         
     def get_teams(self):
@@ -414,7 +415,15 @@ class Bracket():
         self.pid = pid
         for stage, scor in self.scoring.items():
             matches, teams = get_predictions_db(db, self.pid, stage, phase)
-            self.dat[stage] = Stage(name=stage,matches=matches, teams=teams, **scor)
+            if phase == 2:
+                if stage == 'Winner':
+                    self.dat['Winner'] = Stage(name='Winner', teams=self.dat['Final'].winners, **scor)
+                if stage == 'Final':
+                    if matches:
+                        list(matches.values())[0].teams = tuple(teams)
+                    self.dat[stage] = Stage(name=stage, matches=matches, teams=teams, **scor)
+            else:
+                self.dat[stage] = Stage(name=stage, matches=matches, teams=teams, **scor)
         
     @classmethod
     def load_dual_phase(cls, participant, pid, db, scoring):
