@@ -5,7 +5,7 @@ import yaml
 
 from time import sleep
 
-USE_GOOGLE = os.environ.get("USE_GOOGLE", 1)
+USE_GOOGLE = int(os.environ.get("USE_GOOGLE", 1))
 
 from email_validator import validate_email
 from email.message import EmailMessage
