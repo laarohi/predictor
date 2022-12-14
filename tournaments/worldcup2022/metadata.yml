@@ -58,9 +58,9 @@ scoring:
         Semi-Finals:
             qualified: 30
         Final:
-            qualified: 40
+            qualified: 50
         Winner:
-            qualified: 70
+            qualified: 75
         Bonus GS:
             ordering: 15
             questions:
