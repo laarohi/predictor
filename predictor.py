@@ -3,13 +3,15 @@
 import re
 import time
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil.tz import gettz
 from itertools import product
 
 import pandas as pd
 
 from livescore import fifa_codes
 
+mlt = gettz('Europe/Malta')
 
 def get_predictions_db(db, pid, stage, phase):
     match_query = '''
@@ -111,8 +113,17 @@ def get_results_db(db):
 
     return stages
 
+def parse_team(team):
+    if team in fifa_codes and len(team)==3:
+        return team
+    else:
+        try:
+            return fifa_codes[team.title()]
+        except KeyError:
+            return team.strip().split(' ')[-1].title()
+
 class Score():
-    def __init__(self, mid, score, teams=None, dt=None, stage=None, live=False, use_code=False, outcome=None):
+    def __init__(self, mid, score, teams=None, dt=None, stage=None, use_code=False, outcome=None):
         self.mid = mid
         self.home = None
         self.away = None
@@ -121,7 +132,6 @@ class Score():
         self.outcome = None
         self.dt = None
         self.stage = stage
-        self.live = live
                 
         if teams:
             self.teams = tuple(teams)
@@ -216,6 +226,17 @@ class Score():
             return {team:int(goals) for team, goals in zip(self.teams, self.score)}
         else:
             return None
+    
+    @property
+    def live(self):
+        if self.dt:
+            cdt = datetime.now(tz=mlt).replace(tzinfo=None)
+            td = cdt - self.dt
+            if timedelta(0) < td < timedelta(minutes=200):
+                return True
+            else:
+                return False
+            
         
     def compute(self, other, outcome=5, result=15):
         #if self.teams and other.teams and (self.teams != other.teams):
@@ -226,6 +247,7 @@ class Score():
             return outcome
         else:
             return 0
+    
 
         
 class Stage():
@@ -262,32 +284,18 @@ class Stage():
             if self.questions:
                 assert len(self.questions) == len(teams)
                 teams = list(zip(teams, self.questions))
-            if isinstance(teams, tuple):
-                if isinstance(teams[0], str):
-                    try:
-                        teams = tuple([fifa_codes.get(team.title(), team) for team in teams])
-                    except KeyError:
-                        pass
-                elif isinstance(teams[0], tuple):
-                    try:
-                        teams = tuple([(fifa_codes.get(team[0].title(), team[0]), team[1])
-                                        for team in teams])
-                    except KeyError:
-                        pass
-                self.teams = teams
-            elif isinstance(teams, (list, set)):
+            if isinstance(teams, (list, tuple, set)):
                 if isinstance(list(teams)[0], str):
                     try:
                         teams = tuple([fifa_codes.get(team.title(), team) for team in teams])
                     except KeyError:
                         pass
                 elif isinstance(list(teams)[0], tuple):
-                    try:
-                        teams = tuple([(fifa_codes.get(team[0].title(), team[0]), team[1])
-                                        for team in teams])
-                    except KeyError:
-                        pass
+                    teams = tuple([(parse_team(team[0]), team[1])
+                                    for team in teams])
                 self.teams = set(teams)
+    
+            
         
     @property
     def winners(self):
@@ -500,15 +508,15 @@ class ActualBracket(Bracket):
 
     def update(self):
         self.dat = get_results_db(self.db)
-        winner = list(self.dat['Final'].matches.values())[0].winner
-        if winner: winner = [winner]
-        self.dat['Winner'] = Stage('Winner', teams=winner)
+        self.dat['Winner'] = Stage('Winner', teams=['Argentina'])
         mgs = product(self.dat['Group Stage'].most_goals_scored, ["Score Most Goals"])
         mgc = product(self.dat['Group Stage'].most_goals_conceded,[ "Concede Most Goals"])
         lgs = product(self.dat['Group Stage'].least_goals_scored, ["Score Least Goals"])
         bonus_gs = list(mgs) + list(lgs) + list(mgc)
         self.dat['Bonus GS'] = Stage('Bonus GS', teams=bonus_gs)
-        self.dat['Bonus KO'] = Stage('Bonus KO')
+        bonus_ko = [('Messi','Best Player'),('Fernandez','Best Young Player'),('Mbappe','Top Scorer')]
+        self.dat['Bonus KO'] = Stage('Bonus KO', teams=bonus_ko)
+
 
             
 class Tournament():

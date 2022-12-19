@@ -513,7 +513,7 @@ app.layout = dbc.Container(
                 ),
         dcc.Interval(
             id='scoring-interval-component',
-            interval=1*1*60*1000, # in milliseconds
+            interval=6*60*60*1000, # in milliseconds
             n_intervals=0
         ),
         dcc.Interval(
