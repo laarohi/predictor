@@ -514,7 +514,7 @@ class ActualBracket(Bracket):
         lgs = product(self.dat['Group Stage'].least_goals_scored, ["Score Least Goals"])
         bonus_gs = list(mgs) + list(lgs) + list(mgc)
         self.dat['Bonus GS'] = Stage('Bonus GS', teams=bonus_gs)
-        bonus_ko = [('Messi','Best Player'),('Fernandez','Best Young Player'),('Mbappe','Top Scorer')]
+        bonus_ko = [('None','Best Player'),('None','Best Young Player'),('None','Top Scorer'),('None','Dark Horse')]
         self.dat['Bonus KO'] = Stage('Bonus KO', teams=bonus_ko)
 
 
@@ -529,6 +529,8 @@ class Tournament():
         self.scoring = config['scoring']
 
         competitions = self.db.get('competition', 'id, description')
+        if not isinstance(competitions[0], tuple):
+            competitions = (competitions,)
         self.competitions = {cid:comp for cid, comp in competitions}
         for cid, comp in self.competitions.items():
             participants = self.db.get('participant','id, name', competition_id=cid)

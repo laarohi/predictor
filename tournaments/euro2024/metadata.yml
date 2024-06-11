@@ -1,0 +1,92 @@
+tournament: 'Euro Predictor 2024'
+
+deadline:
+    Phase 1: 2024-06-14 15:00:00+01:00
+    Phase 2: 2024-06-29 16:00:00+01:00
+
+livescore:
+    url: 'https://www.livescores.com/football/euro-2024/?tz=2'
+    interval:
+        update: 60
+
+google_api:
+  template_id: '192NYpfnQj6e8zhwN_a21Mi_uYfj8epel_X5x4oBd_rA'
+  folder_id: '1MIHkwZG-9CoqCSS-N0oQPhNsy7rnVFXw'
+
+sheet_ranges:
+    Phase 1:
+        Group Stage: InternalUseOnly!A6:A41
+        Round of 16: Teams!M2:P9
+        Semi-Finals: InternalUseOnly!A43:A46
+        Final: InternalUseOnly!A48:A49
+        Winner: InternalUseOnly!A51
+        Bonus GS: InternalUseOnly!A53:55
+        Bonus KO: InternalUseOnly!A57:60
+    Phase 2:
+        Round of 16: InternalUseOnly!C3:F10
+        Quarter-Finals: InternalUseOnly!C12:F15
+        Semi-Finals: InternalUseOnly!C17:F18
+        Final: InternalUseOnly!C20:F20
+    bracket:
+        group_winners: World Cup!I109:I116
+        group_runnersup: World Cup!N109:N116
+
+
+#host user and passwd can be either environment variables or values
+sql:
+    host: MYSQL_ADDON_HOST
+    user: MYSQL_ADDON_USER
+    passwd: MYSQL_ADDON_PASSWORD
+    db: MYSQL_ADDON_DB
+
+competitions:
+    Main:
+        desc: Main Competition
+        entry_fee: 20
+
+scoring:
+    Phase 1:
+        Group Stage:
+            outcome: 5
+            result: 15
+        Round of 16:
+            qualified: 10
+            ordering: 5
+        Semi-Finals:
+            qualified: 30
+        Final:
+            qualified: 50
+        Winner:
+            qualified: 75
+        Bonus GS:
+            ordering: 15
+            questions:
+                - Score Most Goals
+                - Concede Most Goals
+                - Score Least Goals
+        Bonus KO:
+            ordering: 20
+            questions:
+                - Best Player
+                - Top Scorer
+                - Best Young Player
+                - Dark Horse
+
+    
+    Phase 2:
+        Round of 16:
+            qualified: 0
+            result: 10
+        Quarter-Finals:
+            result: 10
+            qualified: 10
+        Semi-Finals:
+            result: 10
+            qualified: 20
+        Final:
+            result: 10
+            qualified: 30
+        Winner:
+            qualified: 50
+            
+

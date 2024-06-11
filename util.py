@@ -17,7 +17,7 @@ if USE_GOOGLE:
     from googleapiclient.errors import HttpError
 
 
-metadata_path = os.environ.get("METADATA_YML", './tournaments/worldcup2022/metadata.yml')
+metadata_path = os.environ.get("METADATA_YML", './tournaments/euro2024/metadata.yml')
 with open(metadata_path, 'r') as f:
     config = yaml.load(f, Loader=yaml.Loader)
 
