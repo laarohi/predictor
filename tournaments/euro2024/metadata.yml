@@ -7,7 +7,7 @@ deadline:
 footballapi:
     league_id: 1
     interval:
-        update: 300
+        update: 60
 
 google_api:
   template_id: '192NYpfnQj6e8zhwN_a21Mi_uYfj8epel_X5x4oBd_rA'

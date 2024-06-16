@@ -220,7 +220,6 @@ def main(url, db, update_interval, rescrape_interval, phase2_deadline):
                 update_predictions_db(sheets, db, 2)
             except:
                 pass
-        
         sleep(update_interval)
 
 
