@@ -56,10 +56,7 @@ def get_predictions_db(db, pid, stage, phase):
             if group_order:
                 if stage == 'Round of 16':
                     g = group_map[team]
-                    if group_order==1:
-                        o = f'{g} 1st'
-                    elif group_order==2:
-                        o = f'{g} 2nd'
+                    o = f'{g.split()[1]}{group_order}'
                 teams.append((team, o))
             else:
                 teams.append(team)
@@ -455,12 +452,13 @@ class Bracket():
     def compute(self, other):
         points = {}
         for key, stage in self.dat.items():
-            pts = stage.compute(other.dat[key])
-            if key == 'Bonus GS':
-                bonus = other.dat['Group Stage'].matches.values()
-                if sum([v.outcome is not None for v in bonus]) < len(bonus):
-                    pts = 0
-            points[(self.phase, key)] = pts
+            if key in other.dat:
+                pts = stage.compute(other.dat[key])
+                if key == 'Bonus GS':
+                    bonus = other.dat['Group Stage'].matches.values()
+                    if sum([v.outcome is not None for v in bonus]) < len(bonus):
+                        pts = 0
+                points[(self.phase, key)] = pts
             
         return points
     
@@ -509,13 +507,13 @@ class ActualBracket(Bracket):
     def update(self):
         self.dat = get_results_db(self.db)
         self.dat['Winner'] = Stage('Winner', teams=['Argentina'])
-        mgs = product(self.dat['Group Stage'].most_goals_scored, ["Score Most Goals"])
-        mgc = product(self.dat['Group Stage'].most_goals_conceded,[ "Concede Most Goals"])
-        lgs = product(self.dat['Group Stage'].least_goals_scored, ["Score Least Goals"])
-        bonus_gs = list(mgs) + list(lgs) + list(mgc)
-        self.dat['Bonus GS'] = Stage('Bonus GS', teams=bonus_gs)
-        bonus_ko = [('None','Best Player'),('None','Best Young Player'),('None','Top Scorer'),('None','Dark Horse')]
-        self.dat['Bonus KO'] = Stage('Bonus KO', teams=bonus_ko)
+        # mgs = product(self.dat['Group Stage'].most_goals_scored, ["Score Most Goals"])
+        # mgc = product(self.dat['Group Stage'].most_goals_conceded,[ "Concede Most Goals"])
+        # lgs = product(self.dat['Group Stage'].least_goals_scored, ["Score Least Goals"])
+        # bonus_gs = list(mgs) + list(lgs) + list(mgc)
+        # self.dat['Bonus GS'] = Stage('Bonus GS', teams=bonus_gs)
+        # bonus_ko = [('None','Best Player'),('None','Best Young Player'),('None','Top Scorer'),('None','Dark Horse')]
+        # self.dat['Bonus KO'] = Stage('Bonus KO', teams=bonus_ko)
 
 
             

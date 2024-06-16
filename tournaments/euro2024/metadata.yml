@@ -4,10 +4,10 @@ deadline:
     Phase 1: 2024-06-14 15:00:00+01:00
     Phase 2: 2024-06-29 16:00:00+01:00
 
-livescore:
-    url: 'https://www.livescores.com/football/euro-2024/?tz=2'
+footballapi:
+    league_id: 1
     interval:
-        update: 60
+        update: 300
 
 google_api:
   template_id: '192NYpfnQj6e8zhwN_a21Mi_uYfj8epel_X5x4oBd_rA'
@@ -89,4 +89,34 @@ scoring:
         Winner:
             qualified: 50
             
-
+groups:
+    A:
+        - Germany
+        - Scotland
+        - Hungary
+        - Switzerland
+    B:
+        - Spain
+        - Croatia
+        - Italy
+        - Albania
+    C:
+        - England
+        - Serbia
+        - Denmark
+        - Slovenia
+    D:
+        - France
+        - Netherlands
+        - Poland
+        - Austria
+    E:
+        - Belgium
+        - Slovakia
+        - Ukraine
+        - Romania
+    F:
+        - Portugal
+        - Turkey
+        - Czech Republic
+        - Georgia

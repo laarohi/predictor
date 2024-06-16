@@ -242,7 +242,7 @@ def send_email_invite(service, email, sheet_url, subject):
 
         try:
             message = EmailMessage()
-            res = "Welcome to the World Cup 2022 Prection Game. Please use the following link to fill in your predictions:\n\n"
+            res = "Welcome to the Euro 2024 Prediction Game. Please use the following link to fill in your predictions:\n\n"
             res += sheet_url + '\n\nThe link is a public link so do not share it with anyone.\n\nGood luck, \nLuke Aarohi'
             message.set_content(res)
             message['To'] = email
@@ -387,8 +387,10 @@ def update_predictions_db(sheets, db, phase):
             gs = data.pop('Group Stage')
             for i, score in enumerate(gs):
                 if isinstance(score, list): score = score[0]
-                match_id = gs_row_map[i]
+                match_id, is_reversed = gs_row_map[i]
                 home_score, away_score = list(map(lambda x: int(x.strip()), score.split('-')))
+                if is_reversed:
+                    home_score, away_score = away_score, home_score
                 match_result = None
                 entry = (home_score, away_score, match_id, match_result, phase, pid)
                 db.query(match_query, entry)
@@ -452,8 +454,8 @@ def check_status_sheet(sheets, db, phase):
     participant_sheets = db.get('participant', 'name, paid, competition_id, sheet_id')
 
     ranges = {
-        'phase I': 'World Cup!P97',
-        'phase II': 'World Cup!Q122',
+        'phase I': 'Euros!E92',
+        'phase II': 'Euros!Q117',
     }
 
     res = {}
@@ -492,13 +494,14 @@ def update_bracket_sheet(sheets, template, db):
 
 def lock_prediction_sheet(sheets, db, phase):
 
+    # sheet_ids = ['1fYceYMnyjwWbUN8UhiJ-_MDSKQJ_KL4rmWWKKsQUvvI']
     sheet_ids = db.get('participant','sheet_id')
 
     if phase == 1:
         uprs = [
                 {'sheetId': 517157059,
-                'startRowIndex': 108,
-                'endRowIndex': 123,
+                'startRowIndex': 103,
+                'endRowIndex': 118,
                 'startColumnIndex': 10,
                 'endColumnIndex': 12}
                 ] 
@@ -527,6 +530,61 @@ def lock_prediction_sheet(sheets, db, phase):
                 spreadsheetId=sheet_id,
                 body=body).execute()
         print(response)
+
+def bug_fix_sheet(sheets, db):
+
+    sheet_ids = db.get('participant','sheet_id')
+
+    body = {
+        "requests": [
+            {
+            "setDataValidation": {
+                "range": {
+                "sheetId": 517157059,
+                "startRowIndex": 67,
+                "endRowIndex": 68,
+                "startColumnIndex": 10,
+                "endColumnIndex": 11,
+                },
+                "rule": {
+                'condition': {
+                    'type': 'ONE_OF_RANGE', 
+                    'values': [{'userEnteredValue': '=QF_B'}]},
+                'strict': True,
+                'showCustomUi': True
+                }
+                }
+            },
+            {
+            "setDataValidation": {
+                "range": {
+                "sheetId": 517157059,
+                "startRowIndex": 68,
+                "endRowIndex": 69,
+                "startColumnIndex": 4,
+                "endColumnIndex": 5,
+                },
+                "rule": {
+                'condition': {
+                    'type': 'ONE_OF_RANGE', 
+                    'values': [{'userEnteredValue': '=QF_C'}]},
+                'strict': True,
+                'showCustomUi': True
+                }
+                }
+            },
+        ]
+        }
+
+    to_update = {'M4':'=Euros!BA69','M8':'=Euros!BA71'}
+    for sheet_id in sheet_ids:
+        if isinstance(sheet_id, tuple) and len(sheet_id) == 1:
+            sheet_id = sheet_id[0]
+        response = sheets.spreadsheets().batchUpdate(
+                spreadsheetId=sheet_id,
+                body=body).execute()
+        print(response)
+        update_sheet(sheets, sheet_id, to_update, sheet='Teams', value_input_option='USER_ENTERED')
     
 
 def group_stage_row_map(sheets, sheet_id, db):
@@ -535,18 +593,21 @@ def group_stage_row_map(sheets, sheet_id, db):
     
     idea is to create a map from row to fixture.id table in sql for data entry
     '''
-    rows = get_sheet_data(sheets, sheet_id, {'data':'World Cup!I19:N80'})
+    rows = get_sheet_data(sheets, sheet_id, {'data':'Euros!I19:N64'})
     i = 0
     res = {}
     for row in rows['data']:
+        reversed = False
         if len(row) == 0 or row[0] == 'Home':
             continue
         home_team = row[0]
         away_team = row[5]
-        if home_team == 'Unites States': home_team = 'Usa'
-        if away_team == 'Unites States': away_team = 'Usa'
         mid = db.get('fixtures','id', home_team=home_team, away_team=away_team)
-        res[i] = mid
+        if mid is None:
+            reversed = True
+            mid = db.get('fixtures','id', home_team=away_team, away_team=home_team)
+        print(mid, home_team, away_team, reversed)
+        res[i] = (mid, reversed)
         i += 1
     return res
     

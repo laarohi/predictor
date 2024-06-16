@@ -144,7 +144,7 @@ def scrape_competition_from_livescore(comp_url):
 
 def populate_from_livescore(url, db):
     '''
-    This is used to populate fixtures and scoers on an empty database
+    This is used to populate fixtures and scores on an empty database
     '''
     comp_fixtures = scrape_competition_from_livescore(url)
     fixture_query = """INSERT INTO fixtures (home_team , away_team , kickoff , livescore_id, stage ) 
