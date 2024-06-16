@@ -1,9 +1,7 @@
 import requests
-import random
 import os
 import dateutil.parser
 from bs4 import BeautifulSoup
-from urllib import parse
 from time import time, sleep
 import datetime
 from collections import namedtuple

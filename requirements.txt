@@ -9,5 +9,5 @@ protobuf==4.21.9
 python_dateutil==2.8.2
 PyYAML==6.0
 requests==2.25.1
-google_api_python_client==2.65.0
-google_auth_oauthlib==0.7.1
+# google_api_python_client==2.65.0
+# google_auth_oauthlib==0.7.1
