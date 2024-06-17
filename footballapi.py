@@ -153,7 +153,7 @@ def main(league_id, db, update_interval, rescrape_interval, phase2_deadline):
     last_rescrape = time()
     # phase2_locked = time() > phase2_deadline
     while True:
-        if not (datetime.time(16) < datetime.datetime.now().time() < datetime.time(23,30)):
+        if not (datetime.time(15) < datetime.datetime.now().time() < datetime.time(23,30)):
             pass
         elif (time() - last_rescrape) > rescrape_interval:
             print('Rescraping entire competition from footballapi')
