@@ -68,6 +68,13 @@ def get_scores(league_id, stage=None, start='2024-06-14', stop='2024-07-15', liv
         'match_live':int(live)
     }
     r = requests.get(api_url, params)
+    try:
+        r.json()
+    except:
+        return scores
+    if 'error' in r.json():
+        return scores
+
     for match in r.json():
         mid = match['match_id']
         home_team = from_fapi(match['match_hometeam_name'])
@@ -149,11 +156,11 @@ def main(league_id, db, update_interval, rescrape_interval, phase2_deadline):
         if not (datetime.time(16) < datetime.datetime.now().time() < datetime.time(23,30)):
             pass
         elif (time() - last_rescrape) > rescrape_interval:
-            print('Rescraping entire competition from livescore')
+            print('Rescraping entire competition from footballapi')
             last_rescrape = time()
             update_from_fapi(league_id, db, scores=True, fixtures=True)
         elif (time() - last_update) > update_interval:
-            print('Updating scores from livescore')
+            print('Updating scores from footballapi')
             last_update = time()
             update_from_fapi(league_id, db, live=True, scores=True, fixtures=False)
 
