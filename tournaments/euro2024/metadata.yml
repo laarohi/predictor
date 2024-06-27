@@ -120,3 +120,21 @@ groups:
         - Turkey
         - Czech Republic
         - Georgia
+
+group_order:
+    Germany: 1
+    Denmark: 2
+    Switzerland: 2
+    Italy: 2
+    Spain: 1
+    Georgia: 3
+    England: 1
+    Slovakia: 3
+    Portugal: 1
+    Slovenia: 3
+    France: 2
+    Belgium: 2
+    Romania: 1
+    Netherlands: 3
+    Austria: 1
+    Turkey: 2

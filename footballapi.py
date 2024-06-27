@@ -85,6 +85,8 @@ def get_scores(league_id, stage=None, start='2024-06-14', stop='2024-07-15', liv
         if match_stage == 'Group Stage':
             match_stage = 'Group ' + group_map[home_team]
             print(match_stage)
+        if not match_stage:
+            match_stage = 'Round of 16'
         if match_stage not in scores: scores[match_stage] = {}
         match_date = match['match_date']
         match_time = match['match_time']
@@ -103,18 +105,22 @@ def populate_from_fapi(league_id, db):
     '''
     This is used to populate fixtures and scores on an empty database
     '''
-    comp_fixtures = get_scores(league_id)
+    start = datetime.datetime.today().strftime('%Y-%m-%d')
+    comp_fixtures = get_scores(league_id, start=start)
+    current_fixture_query = "SELECT livescore_id from fixtures"
     fixture_query = """INSERT INTO fixtures (home_team , away_team , kickoff , livescore_id, stage ) 
             VALUES (%s,%s,%s,%s,%s)"""
 
+    current_fixtures = db.query(current_fixture_query)
+    current_fixtures = [f[0] for f in current_fixtures]
     for stage in comp_fixtures.values():
         for fixture in stage.values():
             # update fixtures table
             print(fixture)
+            if int(fixture.id) in current_fixtures:
+                continue
             entry = (fixture.home_team, fixture.away_team, fixture.dt.strftime('%Y-%m-%d %H:%M:%S'), fixture.id, fixture.stage)
             db.query(fixture_query, entry)
-
-
 
 def update_from_fapi(league_id, db, live=False, scores=True, fixtures=False):
     """

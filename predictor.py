@@ -63,7 +63,7 @@ def get_predictions_db(db, pid, stage, phase):
 
     return matches, teams
 
-def get_results_db(db):
+def get_results_db(db, config):
     results_query = '''
         SELECT f.id, s.home_score, s.away_score, f.home_team, f.away_team, f.kickoff, f.stage
         FROM fixtures as f
@@ -77,6 +77,7 @@ def get_results_db(db):
     '''
     groups = db.query(group_query)
     group_map = {t:g for t,g in groups}
+    order_map = config['group_order']
     ro16_teams = []
 
     results = db.query(results_query)
@@ -93,12 +94,11 @@ def get_results_db(db):
             m_teams = (home_team, away_team)
 
             if stage and stage == 'Round of 16':
-                if home_team in group_map:
-                    home_order = f"{group_map[home_team]} 1st"
-                    ro16_teams.append((home_team, home_order))
-                if away_team in group_map:
-                    away_order = f"{group_map[away_team]} 2nd"
-                    ro16_teams.append((away_team, away_order))
+                for team in m_teams:
+                    g = group_map[team]
+                    o = order_map[team]
+                    team_order = f'{g.split()[1]}{o}'
+                    ro16_teams.append((team, team_order))
             stage_scores[stage][mid] = Score(mid, score, m_teams, dt=kickoff, stage=stage)
     
     stages = {}
@@ -497,21 +497,22 @@ class Bracket():
 
 class ActualBracket(Bracket):
 
-    def __init__(self, db):
+    def __init__(self, db, config):
         self.name = 'actual'
         self.phase = 0
         self.db = db
         self.stages = ['Group Stage','Round of 16','Quarter-Finals','Semi-Finals','Finals','Winner','Bonus GS','Bonus KO']
+        self.config = config
         self.update()
 
     def update(self):
-        self.dat = get_results_db(self.db)
+        self.dat = get_results_db(self.db, self.config)
         self.dat['Winner'] = Stage('Winner', teams=['Argentina'])
-        # mgs = product(self.dat['Group Stage'].most_goals_scored, ["Score Most Goals"])
-        # mgc = product(self.dat['Group Stage'].most_goals_conceded,[ "Concede Most Goals"])
-        # lgs = product(self.dat['Group Stage'].least_goals_scored, ["Score Least Goals"])
-        # bonus_gs = list(mgs) + list(lgs) + list(mgc)
-        # self.dat['Bonus GS'] = Stage('Bonus GS', teams=bonus_gs)
+        mgs = product(self.dat['Group Stage'].most_goals_scored, ["Score Most Goals"])
+        mgc = product(self.dat['Group Stage'].most_goals_conceded,[ "Concede Most Goals"])
+        lgs = product(self.dat['Group Stage'].least_goals_scored, ["Score Least Goals"])
+        bonus_gs = list(mgs) + list(lgs) + list(mgc)
+        self.dat['Bonus GS'] = Stage('Bonus GS', teams=bonus_gs)
         # bonus_ko = [('None','Best Player'),('None','Best Young Player'),('None','Top Scorer'),('None','Dark Horse')]
         # self.dat['Bonus KO'] = Stage('Bonus KO', teams=bonus_ko)
 
@@ -525,6 +526,7 @@ class Tournament():
         self.participants = {}
         self.brackets = {}
         self.scoring = config['scoring']
+        self.config = config
 
         competitions = self.db.get('competition', 'id, description')
         if not isinstance(competitions[0], tuple):
@@ -549,7 +551,7 @@ class Tournament():
     def reload(self):
         current_time = time.time()
         if current_time - self.load_time > self.load_interval:
-            self.actual = ActualBracket(self.db)
+            self.actual = ActualBracket(self.db, self.config)
             self.teams = self.actual.dat['Group Stage'].teams
             self.load_time = current_time
         elif current_time - self.update_time > self.update_interval:
