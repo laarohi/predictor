@@ -91,14 +91,34 @@ def get_scores(league_id, stage=None, start='2024-06-14', stop='2024-07-15', liv
         match_date = match['match_date']
         match_time = match['match_time']
         match_dt = dateutil.parser.parse(match_date + ' ' + match_time)
-        if match.get('match_live'):
-            home_score = match['match_hometeam_score'] or None
-            away_score = match['match_awayteam_score'] or None
-        else:
-            home_score = match['match_hometeam_ft_score'] or None
-            away_score = match['match_awayteam_ft_score'] or None
+        home_score = match['match_hometeam_ft_score'] or match['match_hometeam_score'] or None
+        away_score = match['match_awayteam_ft_score'] or match['match_awayteam_score'] or None
         scores[match_stage][mid] = Score(mid, home_score, away_score, home_team, away_team, match_dt, match_stage)
     return scores
+
+def populate_from_metadata(comp_fixtures, db):
+    '''
+    This is used to populate fixtures from metadata when data is missing from
+    footballapi
+    '''
+    current_fixture_query = "SELECT kickoff from fixtures"
+    fixture_query = """INSERT INTO fixtures (home_team , away_team , kickoff , livescore_id, stage ) 
+            VALUES (%s,%s,%s,%s,%s)"""
+
+    current_fixtures = db.query(current_fixture_query)
+    current_fixtures = [f[0] for f in current_fixtures]
+
+    for stage, stage_fixtures in comp_fixtures.items():
+        for fixture in stage_fixtures:
+            # update fixtures table
+            breakpoint()
+            print(fixture)
+            if fixture['dt'] in current_fixtures:
+                continue
+            dt = fixture['dt'].strftime('%Y-%m-%d %H:%M:%S')
+            fid = int(fixture['dt'].strftime('%Y%m%d%H'))
+            entry = (fixture['home'], fixture['away'], dt, fid, stage)
+            db.query(fixture_query, entry)
 
 
 def populate_from_fapi(league_id, db):

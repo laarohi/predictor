@@ -265,11 +265,11 @@ def send_email_invite(service, email, sheet_url, subject):
             send_message = None
         return send_message
 
-def get_sheet_data(service, sheet_id, ranges):
+def get_sheet_data(service, sheet_id, ranges, value_render_option='FORMATTED_VALUE'):
     range_keys = list(ranges.keys())
     range_values = list(ranges.values())
     data = service.spreadsheets().values().batchGet(
-        spreadsheetId=sheet_id, ranges=range_values).execute()
+        spreadsheetId=sheet_id, ranges=range_values, valueRenderOption=value_render_option).execute()
     data = data.get('valueRanges', [])
 
     res = {}
@@ -420,34 +420,31 @@ def update_predictions_db(sheets, db, phase):
         # TODO Test this before actually using it 
         sheet_ranges = config['sheet_ranges']['Phase 2'] 
         for pid, sheet_id in participant_sheets:
-            try:
-                data = get_sheet_data(sheets, sheet_id, sheet_ranges)
-                for stage, dat in data.items():
-                    db.query(delete_team_query, (stage, phase, pid))
-                    match_ids = db.get("fixtures", "id", order_by="kickoff", stage=stage)
-                    if not isinstance(match_ids, (list, tuple)):
-                        match_ids = [match_ids]
-                    for match_id, (home_team, home_score, away_team, away_score) in zip(match_ids, dat):
-                        score = f'{home_score}-{away_score}'
-                        if '*' in score:
-                            o = score.find('*') - score.find('-')
-                            if o > 0:
-                                match_result = 2
-                            elif o < 0:
-                                match_result = 1
-                            home_score = home_score.replace('*', '')
-                            away_score = away_score.replace('*', '')
-                        else:
-                            match_result = None
-                        match_entry = (home_score, away_score, match_id, match_result, phase, pid)
-                        db.query(match_query, match_entry)
-                        home_team_entry = (home_team, stage, None, phase, pid)
-                        away_team_entry = (away_team, stage, None, phase, pid)
-                        db.query(insert_team_query, home_team_entry)
-                        db.query(insert_team_query, away_team_entry)
-                print(f'{pid} done!')
-            except:
-                print(f'{pid} failed!')
+            data = get_sheet_data(sheets, sheet_id, sheet_ranges)
+            for stage, dat in data.items():
+                db.query(delete_team_query, (stage, phase, pid))
+                match_ids = db.get("fixtures", "id", order_by="kickoff", stage=stage)
+                if not isinstance(match_ids, (list, tuple)):
+                    match_ids = [match_ids]
+                for match_id, (home_team, home_score, away_team, away_score) in zip(match_ids, dat):
+                    score = f'{home_score}-{away_score}'
+                    if '*' in score:
+                        o = score.find('*') - score.find('-')
+                        if o > 0:
+                            match_result = 2
+                        elif o < 0:
+                            match_result = 1
+                        home_score = home_score.replace('*', '')
+                        away_score = away_score.replace('*', '')
+                    else:
+                        match_result = None
+                    match_entry = (home_score, away_score, match_id, match_result, phase, pid)
+                    db.query(match_query, match_entry)
+                    home_team_entry = (home_team, stage, None, phase, pid)
+                    away_team_entry = (away_team, stage, None, phase, pid)
+                    db.query(insert_team_query, home_team_entry)
+                    db.query(insert_team_query, away_team_entry)
+            print(f'{pid} done!')
 
 
 def check_status_sheet(sheets, db, phase):
@@ -483,18 +480,17 @@ def check_status_sheet(sheets, db, phase):
 
 def update_bracket_sheet(sheets, template, db):
     b_ranges = config['sheet_ranges']['bracket']
-    b_data = get_sheet_data(sheets, template, b_ranges)
+    b_data = get_sheet_data(sheets, template, b_ranges, value_render_option="FORMULA")
     to_update = {b_ranges[k]:v for k,v in b_data.items()}
     sheet_ids = db.get('participant','sheet_id')
     for sheet_id in sheet_ids:
         if isinstance(sheet_id, tuple) and len(sheet_id) == 1:
             sheet_id = sheet_id[0]
-        update_sheet(sheets, sheet_id, to_update)
+        update_sheet(sheets, sheet_id, to_update, value_input_option="USER_ENTERED")
 
 
 def lock_prediction_sheet(sheets, db, phase):
 
-    # sheet_ids = ['1fYceYMnyjwWbUN8UhiJ-_MDSKQJ_KL4rmWWKKsQUvvI']
     sheet_ids = db.get('participant','sheet_id')
 
     if phase == 1:
@@ -615,9 +611,11 @@ def group_stage_row_map(sheets, sheet_id, db):
 if 1 and __name__ == '__main__':
     creds = get_creds('google_token.json','google_credentials.json')
     services = build_services(creds)
-    tid = '1EKQnM9qsdpfEkUdCMX1SkzUUXSiul4rExZ7xa1ksk-s'
-    sheet_id = '1P9QBDWj5dpBhQaygnyl_qgoZjrvyBfW2dDPkaXPNUrM'
+    tid = '192NYpfnQj6e8zhwN_a21Mi_uYfj8epel_X5x4oBd_rA'
+    sheet_id = '1fYceYMnyjwWbUN8UhiJ-_MDSKQJ_KL4rmWWKKsQUvvI'
     db = DB(config['sql'])
-    res = check_status_sheet(services['sheets'], db, phase=2)
+    # res = check_status_sheet(services['sheets'], db, phase=2)
+    # lock_prediction_sheet(services['sheets'],db,2)
+    update_predictions_db(services['sheets'],db,2)
 
 
