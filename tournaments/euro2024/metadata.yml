@@ -141,17 +141,17 @@ group_order:
 knockout_fixtures:
     Quarter-Finals:
         -  dt: 2024-07-05 18:00:00
-           home: W39
-           away: W37
+           home: Spain
+           away: Germany
         -  dt: 2024-07-05 21:00:00
-           home: W41
-           away: W42
+           home: France
+           away: Portugal
         -  dt: 2024-07-06 18:00:00
-           home: W43
-           away: W44
+           home: England
+           away: Switzerland
         -  dt: 2024-07-06 21:00:00
-           home: W40
-           away: W38
+           home: Netherlands
+           away: Turkey
     Semi-Finals:
         -  dt: 2024-07-09 21:00:00
            home: W45

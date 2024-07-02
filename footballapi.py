@@ -120,6 +120,28 @@ def populate_from_metadata(comp_fixtures, db):
             entry = (fixture['home'], fixture['away'], dt, fid, stage)
             db.query(fixture_query, entry)
 
+def update_from_metadata(comp_fixtures, db):
+    '''
+    This is used to populate fixtures from metadata when data is missing from
+    footballapi
+    '''
+    current_fixture_query = "SELECT kickoff from fixtures"
+    fixture_query = """UPDATE fixtures 
+            SET home_team=%s, away_team=%s
+            WHERE livescore_id=%s"""
+
+    current_fixtures = db.query(current_fixture_query)
+    current_fixtures = [f[0] for f in current_fixtures]
+
+    for stage, stage_fixtures in comp_fixtures.items():
+        for fixture in stage_fixtures:
+            # update fixtures table
+            if fixture['dt'] not in current_fixtures:
+                continue
+            print(fixture)
+            fid = int(fixture['dt'].strftime('%Y%m%d%H'))
+            entry = (fixture['home'], fixture['away'], fid)
+            db.query(fixture_query, entry)
 
 def populate_from_fapi(league_id, db):
     '''

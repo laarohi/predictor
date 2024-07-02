@@ -513,8 +513,8 @@ class ActualBracket(Bracket):
         lgs = product(self.dat['Group Stage'].least_goals_scored, ["Score Least Goals"])
         bonus_gs = list(mgs) + list(lgs) + list(mgc)
         self.dat['Bonus GS'] = Stage('Bonus GS', teams=bonus_gs)
-        # bonus_ko = [('None','Best Player'),('None','Best Young Player'),('None','Top Scorer'),('None','Dark Horse')]
-        # self.dat['Bonus KO'] = Stage('Bonus KO', teams=bonus_ko)
+        bonus_ko = [('None','Best Player'),('None','Best Young Player'),('None','Top Scorer'),('Turkey','Dark Horse')]
+        self.dat['Bonus KO'] = Stage('Bonus KO', teams=bonus_ko)
 
 
             
