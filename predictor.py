@@ -45,6 +45,8 @@ def get_predictions_db(db, pid, stage, phase):
         for mid, home_score, away_score, match_outcome, home_team, away_team, kickoff in match_preds:
             score = (home_score, away_score)
             m_teams = (home_team, away_team)
+            if int(mid) in (49,50):
+                score = tuple(reversed(score))
             matches[mid] = Score(mid, score, m_teams, dt=kickoff, stage=stage, outcome=match_outcome)
 
     team_preds = db.query(team_query, (pid, stage, phase))

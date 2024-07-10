@@ -91,6 +91,8 @@ def get_scores(league_id, stage=None, start='2024-06-14', stop='2024-07-15', liv
         match_date = match['match_date']
         match_time = match['match_time']
         match_dt = dateutil.parser.parse(match_date + ' ' + match_time)
+        if match_stage in ('Quarter-Finals', 'Semi-Finals','Finals'):
+            mid = int(match_dt.strftime('%Y%m%d%H'))
         home_score = match['match_hometeam_ft_score'] or match['match_hometeam_score'] or None
         away_score = match['match_awayteam_ft_score'] or match['match_awayteam_score'] or None
         scores[match_stage][mid] = Score(mid, home_score, away_score, home_team, away_team, match_dt, match_stage)
@@ -192,6 +194,7 @@ def update_from_fapi(league_id, db, live=False, scores=True, fixtures=False):
                 if fixture.home_score is not None and fixture.home_score != '?':
                     db.query(score_query, entry)
             if fixtures:
+                print('updating fixtures')
                 entry = (fixture.home_team, fixture.away_team, fixture.id)
                 db.query(fixture_query, entry)
 
@@ -239,4 +242,5 @@ if __name__ == "__main__":
     phase2_deadline = config['deadline']['Phase 2'].timestamp()
     db = DB(config['sql'])
     # update_from_fapi(league_id, db, True, True)
+    update_interval = 10
     main(league_id, db, update_interval, rescrape_interval, phase2_deadline)
