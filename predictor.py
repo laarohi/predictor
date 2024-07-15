@@ -509,13 +509,13 @@ class ActualBracket(Bracket):
 
     def update(self):
         self.dat = get_results_db(self.db, self.config)
-        self.dat['Winner'] = Stage('Winner', teams=['Argentina'])
+        self.dat['Winner'] = Stage('Winner', teams=['Spain'])
         mgs = product(self.dat['Group Stage'].most_goals_scored, ["Score Most Goals"])
         mgc = product(self.dat['Group Stage'].most_goals_conceded,[ "Concede Most Goals"])
         lgs = product(self.dat['Group Stage'].least_goals_scored, ["Score Least Goals"])
         bonus_gs = list(mgs) + list(lgs) + list(mgc)
         self.dat['Bonus GS'] = Stage('Bonus GS', teams=bonus_gs)
-        bonus_ko = [('None','Best Player'),('None','Best Young Player'),('None','Top Scorer'),('Turkey','Dark Horse')]
+        bonus_ko = [('Rodri','Best Player'),('Yamal','Best Young Player'),('Kane','Top Scorer'),('Turkey','Dark Horse')]
         self.dat['Bonus KO'] = Stage('Bonus KO', teams=bonus_ko)
 
 
